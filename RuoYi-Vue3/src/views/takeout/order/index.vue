@@ -79,6 +79,14 @@
       </el-col>
       <el-col :span="1.5">
         <el-button
+          type="info"
+          plain
+          icon="Money"
+          @click="openPaymentLog"
+        >支付流水</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
           type="warning"
           plain
           icon="Close"
@@ -140,11 +148,15 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="240" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="340" class-name="small-padding fixed-width">
         <template #default="scope">
           <el-button link type="primary" icon="View" @click="handleView(scope.row)" v-hasPermi="['takeout:order:query']">详情</el-button>
+          <el-button link type="primary" icon="Shop" @click="jumpToMerchant(scope.row)" v-hasPermi="['takeout:merchant:query']">商家</el-button>
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['takeout:order:edit']">修改</el-button>
           <el-button link type="primary" icon="Refresh" @click="handleStatusDialog(scope.row)" v-hasPermi="['takeout:order:changeStatus']">改状态</el-button>
+          <!-- P2: 仅待支付订单显示"模拟支付"按钮 -->
+          <el-button v-if="String(scope.row.status) === '0'" link type="success" icon="Money" @click="openPayDialog(scope.row)">模拟支付</el-button>
+          <el-button v-else-if="String(scope.row.status) === '1'" link type="warning" icon="Refresh" @click="openRefundDialog(scope.row)">退款</el-button>
           <el-button link type="danger" icon="Close" @click="handleCancel(scope.row)" v-hasPermi="['takeout:order:cancel']">取消</el-button>
           <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['takeout:order:remove']">删除</el-button>
         </template>
@@ -297,7 +309,11 @@
         <el-descriptions-item label="状态">
           <el-tag :type="statusTagType(detail.status)">{{ statusDict[detail.status] || detail.status }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="商家">{{ detail.merchantName }}</el-descriptions-item>
+        <el-descriptions-item label="商家">
+          <el-link type="primary" :underline="false" @click="jumpToMerchant(detail)" v-hasPermi="['takeout:merchant:query']">
+            {{ detail.merchantName }}
+          </el-link>
+        </el-descriptions-item>
         <el-descriptions-item label="用户ID">{{ detail.userId }}</el-descriptions-item>
         <el-descriptions-item label="订单金额">¥ {{ detail.totalAmount }}</el-descriptions-item>
         <el-descriptions-item label="配送费">¥ {{ detail.deliveryFee }}</el-descriptions-item>
@@ -323,7 +339,13 @@
 
       <div style="margin-top: 16px; font-weight: 600">订单商品</div>
       <el-table :data="detail.orderItems || []" size="small" style="margin-top: 8px">
-        <el-table-column label="菜品" align="center" prop="dishName" />
+        <el-table-column label="菜品" align="center" prop="dishName">
+          <template #default="scope">
+            <el-link type="primary" :underline="false" @click="jumpToDish(scope.row)" v-hasPermi="['takeout:dish:query']">
+              {{ scope.row.dishName }}
+            </el-link>
+          </template>
+        </el-table-column>
         <el-table-column label="单价" align="center" prop="price" width="100">
           <template #default="scope">¥ {{ scope.row.price }}</template>
         </el-table-column>
@@ -385,6 +407,67 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- P2: 支付弹窗(Mock 演示) -->
+    <el-dialog title="模拟支付" v-model="payOpen" width="560px" append-to-body>
+      <el-form :model="payForm" label-width="100px">
+        <el-form-item label="订单号"><span>{{ payForm.orderNo }}</span></el-form-item>
+        <el-form-item label="支付金额"><b style="color:#E6A23C;font-size:18px">¥ {{ payForm.amount }}</b></el-form-item>
+        <el-form-item label="支付渠道">
+          <el-radio-group v-model="payForm.channel">
+            <el-radio value="MOCK">Mock(开发演示)</el-radio>
+            <el-radio value="WECHAT" disabled>微信支付(待接入)</el-radio>
+            <el-radio value="ALIPAY" disabled>支付宝(待接入)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="payResult.prepayInfo" label="二维码内容">
+          <el-input v-model="payResult.prepayInfo" readonly type="textarea" :rows="2" />
+          <div style="color:#909399;font-size:12px;margin-top:4px">真实场景:此处展示扫码二维码图片</div>
+        </el-form-item>
+        <el-form-item v-if="payResult.tradeNo" label="渠道流水号">
+          <el-tag>{{ payResult.tradeNo }}</el-tag>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button type="primary" :loading="paying" @click="submitPay">发起支付</el-button>
+        <el-button :disabled="!payResult.tradeNo" @click="submitQuery">我已支付(主动查账)</el-button>
+        <el-button @click="payOpen = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- P2: 退款弹窗 -->
+    <el-dialog title="订单退款" v-model="refundOpen" width="500px" append-to-body>
+      <el-form :model="refundForm" label-width="90px">
+        <el-form-item label="订单号"><span>{{ refundForm.orderNo }}</span></el-form-item>
+        <el-form-item label="退款金额"><b>¥ {{ refundForm.amount }}</b></el-form-item>
+        <el-form-item label="退款原因">
+          <el-input v-model="refundForm.reason" type="textarea" :rows="3" placeholder="请输入退款原因" maxlength="255" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button type="danger" :loading="refunding" @click="submitRefund">确认退款</el-button>
+        <el-button @click="refundOpen = false">取消</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- P2: 支付流水 -->
+    <el-dialog title="支付流水" v-model="paymentLogOpen" width="900px" append-to-body>
+      <el-table :data="paymentList" v-loading="paymentLoading" size="small" border>
+        <el-table-column label="ID" prop="id" width="60" align="center" />
+        <el-table-column label="订单号" prop="orderNo" width="170" :show-overflow-tooltip="true" />
+        <el-table-column label="渠道" prop="channel" width="80" align="center" />
+        <el-table-column label="金额" prop="amount" width="100" align="center">
+          <template #default="scope">¥{{ scope.row.amount }}</template>
+        </el-table-column>
+        <el-table-column label="状态" prop="status" width="100" align="center">
+          <template #default="scope">
+            <el-tag :type="paymentStatusType(scope.row.status)">{{ paymentStatusLabel(scope.row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="渠道流水号" prop="tradeNo" width="200" :show-overflow-tooltip="true" />
+        <el-table-column label="创建时间" prop="createTime" width="160" align="center" />
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
@@ -393,6 +476,7 @@ import { listOrder, getOrder, addOrder, updateOrder, delOrder, changeOrderStatus
 import { listMerchant } from "@/api/takeout/merchant"
 import { listUser } from "@/api/takeout/user"
 import { addDateRange, parseTime } from "@/utils/ruoyi"
+import { listPayment, createPayment, queryPayment, refundPayment } from "@/api/takeout/payment"
 
 const { proxy } = getCurrentInstance()
 
@@ -403,6 +487,15 @@ const open = ref(false)
 const detailOpen = ref(false)
 const statusOpen = ref(false)
 const cancelOpen = ref(false)
+// P2: 支付/退款/流水弹窗
+const payOpen = ref(false)
+const refundOpen = ref(false)
+const paymentLogOpen = ref(false)
+const paying = ref(false)
+const refunding = ref(false)
+const paymentLoading = ref(false)
+const paymentList = ref([])
+const payResult = ref({})
 const loading = ref(true)
 const showSearch = ref(true)
 const ids = ref([])
@@ -461,10 +554,24 @@ const data = reactive({
     orderId: undefined,
     orderNo: undefined,
     cancelReason: undefined
+  },
+  payForm: {
+    paymentId: undefined,
+    orderId: undefined,
+    orderNo: undefined,
+    amount: undefined,
+    channel: 'MOCK'
+  },
+  refundForm: {
+    paymentId: undefined,
+    orderId: undefined,
+    orderNo: undefined,
+    amount: undefined,
+    reason: undefined
   }
 })
 
-const { queryParams, form, rules, statusForm, cancelForm } = toRefs(data)
+const { queryParams, form, rules, statusForm, cancelForm, payForm, refundForm } = toRefs(data)
 
 // ===== 菜品选择子表 =====
 const pickerOpen = ref(false)
@@ -773,6 +880,142 @@ function submitCancel() {
 function cancel() {
   open.value = false
   reset()
+}
+
+// 跳转到菜品管理页（带 dishId 参数）
+function jumpToDish(item) {
+  if (!item || !item.dishId) {
+    proxy.$modal.msgWarning('该订单明细缺少菜品ID')
+    return
+  }
+  proxy.$router.push({ path: '/takeout/dish', query: { dishId: item.dishId } })
+}
+
+// 跳转到商家管理页（带 merchantId 参数）
+function jumpToMerchant(row) {
+  const mid = row?.merchantId
+  if (!mid) {
+    proxy.$modal.msgWarning('该订单未关联商家')
+    return
+  }
+  proxy.$router.push({ path: '/takeout/merchant', query: { merchantId: mid } })
+}
+
+// ===== P2: 支付相关函数 =====
+
+/**
+ * 打开支付弹窗前先查该订单的支付流水记录(取最新一条 PENDING 的 paymentId)
+ */
+async function openPayDialog(row) {
+  try {
+    paymentLoading.value = true
+    const list = await listPayment({ orderId: row.orderId })
+    const rows = Array.isArray(list) ? list : (list.rows || list.data || [])
+    const pending = rows.find(p => p.status === 'PENDING') || rows[0]
+    if (!pending) {
+      proxy.$modal.msgWarning('未找到该订单的支付挂单记录')
+      return
+    }
+    payForm.value = {
+      paymentId: pending.id,
+      orderId: row.orderId,
+      orderNo: row.orderNo,
+      amount: row.totalAmount,
+      channel: 'MOCK'
+    }
+    payResult.value = {}
+    payOpen.value = true
+  } finally {
+    paymentLoading.value = false
+  }
+}
+
+async function submitPay() {
+  paying.value = true
+  try {
+    const r = await createPayment(payForm.value.paymentId)
+    if (r && r.code === 'SUCCESS') {
+      payResult.value = r
+      proxy.$modal.msgSuccess('Mock 支付已成功,订单状态已推进')
+      getList()
+    } else {
+      proxy.$modal.msgError(r?.errorMsg || '发起支付失败')
+    }
+  } finally {
+    paying.value = false
+  }
+}
+
+async function submitQuery() {
+  paying.value = true
+  try {
+    const r = await queryPayment(payForm.value.paymentId)
+    if (r && r.code === 'SUCCESS') {
+      proxy.$modal.msgSuccess('查账完成,状态=' + r.code)
+      payOpen.value = false
+      getList()
+    }
+  } finally {
+    paying.value = false
+  }
+}
+
+async function openRefundDialog(row) {
+  try {
+    paymentLoading.value = true
+    const list = await listPayment({ orderId: row.orderId })
+    const rows = Array.isArray(list) ? list : (list.rows || list.data || [])
+    const success = rows.find(p => p.status === 'SUCCESS')
+    if (!success) {
+      proxy.$modal.msgWarning('该订单没有已支付的记录')
+      return
+    }
+    refundForm.value = {
+      paymentId: success.id,
+      orderId: row.orderId,
+      orderNo: row.orderNo,
+      amount: success.amount,
+      reason: undefined
+    }
+    refundOpen.value = true
+  } finally {
+    paymentLoading.value = false
+  }
+}
+
+async function submitRefund() {
+  refunding.value = true
+  try {
+    const r = await refundPayment(refundForm.value.paymentId, refundForm.value.reason || '管理员手动退款')
+    if (r && r.code === 'SUCCESS') {
+      proxy.$modal.msgSuccess('退款已发起')
+      refundOpen.value = false
+      getList()
+    } else {
+      proxy.$modal.msgError(r?.errorMsg || '退款失败')
+    }
+  } finally {
+    refunding.value = false
+  }
+}
+
+function paymentStatusType(s) {
+  return ({ 'PENDING': 'info', 'SUCCESS': 'success', 'FAILED': 'danger', 'REFUNDED': 'warning', 'CLOSED': '' })[s] || ''
+}
+
+function paymentStatusLabel(s) {
+  return ({ 'PENDING': '待支付', 'SUCCESS': '已支付', 'FAILED': '失败', 'REFUNDED': '已退款', 'CLOSED': '已关闭' })[s] || s
+}
+
+async function openPaymentLog() {
+  paymentLogOpen.value = true
+  paymentLoading.value = true
+  try {
+    const res = await listPayment({ pageNum: 1, pageSize: 50 })
+    paymentList.value = Array.isArray(res) ? res : (res.rows || res.data || [])
+  } finally {
+    paymentLoading.value = false
+  }
 }
 
 onMounted(() => {

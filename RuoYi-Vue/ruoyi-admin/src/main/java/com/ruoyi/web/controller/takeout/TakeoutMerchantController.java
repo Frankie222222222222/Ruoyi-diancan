@@ -22,6 +22,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.takeout.domain.TakeoutMerchant;
 import com.ruoyi.takeout.service.ITakeoutMerchantService;
+import com.ruoyi.takeout.service.ITakeoutOrderService;
 
 /**
  * 外卖商家管理 Controller
@@ -37,6 +38,9 @@ public class TakeoutMerchantController extends BaseController
 {
     @Autowired
     private ITakeoutMerchantService merchantService;
+
+    @Autowired
+    private ITakeoutOrderService orderService;
 
     /**
      * 查询商家列表
@@ -71,6 +75,17 @@ public class TakeoutMerchantController extends BaseController
     public AjaxResult getInfo(@PathVariable("merchantId") Long merchantId)
     {
         return success(merchantService.selectMerchantById(merchantId));
+    }
+
+    /**
+     * 商家统计概览（详情抽屉用）
+     * 返回字段：dishCount / orderCount / todayOrderCount / totalAmount30d / todayAmount
+     */
+    @PreAuthorize("@ss.hasPermi('takeout:merchant:query')")
+    @GetMapping("/stat/{merchantId}")
+    public AjaxResult stat(@PathVariable("merchantId") Long merchantId)
+    {
+        return success(orderService.statByMerchantId(merchantId));
     }
 
     /**
@@ -143,5 +158,22 @@ public class TakeoutMerchantController extends BaseController
     public AjaxResult audit(@RequestBody TakeoutMerchant merchant)
     {
         return toAjax(merchantService.auditMerchant(merchant));
+    }
+
+    /**
+     * 商家下拉选项（id + name，仅用于评价搜索等下拉框）
+     */
+    @GetMapping("/simple")
+    public AjaxResult simple()
+    {
+        List<TakeoutMerchant> all = merchantService.selectMerchantList(new TakeoutMerchant());
+        // 只取 id + name 减少传输量
+        List<?> data = all.stream().map(m -> {
+            java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+            item.put("merchantId", m.getMerchantId());
+            item.put("merchantName", m.getMerchantName());
+            return item;
+        }).collect(java.util.stream.Collectors.toList());
+        return success(data);
     }
 }

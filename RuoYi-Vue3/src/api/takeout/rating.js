@@ -1,5 +1,9 @@
 import request from '@/utils/request'
 
+// ============================================
+//  评价管理
+// ============================================
+
 // Query rating list
 export function listRating(query) {
   return request({ url: '/takeout/rating/list', method: 'get', params: query })
@@ -7,7 +11,7 @@ export function listRating(query) {
 
 // Get rating detail
 export function getRating(ratingId) {
-  return request({ url: `/takeout/rating/${ratingId}`, method: 'get' })
+    return request({ url: `/takeout/rating/${ratingId}`, method: 'get' })
 }
 
 // Get rating by order
@@ -28,4 +32,11 @@ export function replyRating(ratingId, reply) {
 // Delete ratings
 export function delRating(ids) {
   return request({ url: `/takeout/rating/${ids}`, method: 'delete' })
+}
+
+// ============================================
+//  商家下拉选项（给评价搜索框用）
+// ============================================
+export function listMerchantSimple() {
+  return request({ url: '/takeout/merchant/simple', method: 'get' })
 }

@@ -97,6 +97,12 @@ public class TakeoutRating extends BaseEntity
     /** 扩展：骑手姓名 */
     private String riderName;
 
+    /** 扩展：订单号 */
+    private String orderNo;
+
+    /** 查询用：回复状态（0未回复 1已回复，不存库） */
+    private String replyStatus;
+
     public Long getRatingId()
     {
         return ratingId;
@@ -316,6 +322,26 @@ public class TakeoutRating extends BaseEntity
     public void setRiderName(String riderName)
     {
         this.riderName = riderName;
+    }
+
+    public String getOrderNo()
+    {
+        return orderNo;
+    }
+
+    public void setOrderNo(String orderNo)
+    {
+        this.orderNo = orderNo;
+    }
+
+    public String getReplyStatus()
+    {
+        return replyStatus;
+    }
+
+    public void setReplyStatus(String replyStatus)
+    {
+        this.replyStatus = replyStatus;
     }
 
     @Override

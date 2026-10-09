@@ -13,6 +13,7 @@ import com.ruoyi.takeout.domain.TakeoutMerchant;
 import com.ruoyi.takeout.enums.AuditStatusEnum;
 import com.ruoyi.takeout.enums.BusinessStatusEnum;
 import com.ruoyi.takeout.mapper.TakeoutMerchantMapper;
+import com.ruoyi.takeout.mapper.TakeoutOrderMapper;
 import com.ruoyi.takeout.service.ITakeoutMerchantService;
 
 /**
@@ -33,9 +34,13 @@ public class TakeoutMerchantServiceImpl implements ITakeoutMerchantService
     private static final int ERR_AUDIT_STATUS       = 1004;
     private static final int ERR_MERCHANT_NOT_FOUND = 1005;
     private static final int ERR_MERCHANT_HAS_USER  = 1006;
+    private static final int ERR_MERCHANT_HAS_ORDER = 1007;
 
     @Autowired
     private TakeoutMerchantMapper merchantMapper;
+
+    @Autowired
+    private TakeoutOrderMapper orderMapper;
 
     @Override
     public List<TakeoutMerchant> selectMerchantList(TakeoutMerchant merchant)
@@ -160,6 +165,15 @@ public class TakeoutMerchantServiceImpl implements ITakeoutMerchantService
                     String.format("[ERR_%d] 商家「%s」已绑定系统用户，请先解绑后删除",
                         ERR_MERCHANT_HAS_USER, exist.getMerchantName()),
                     ERR_MERCHANT_HAS_USER);
+            }
+            // G5: 拦截有"进行中订单"的商家 —— 避免删除后历史订单找不到商家名
+            int activeOrderCount = orderMapper.countUnfinishedByMerchantId(merchantId);
+            if (activeOrderCount > 0)
+            {
+                throw new ServiceException(
+                    String.format("[ERR_%d] 商家「%s」还有 %d 个进行中订单（待支付/已支付/商家接单/配送中），请先关闭订单后再删除",
+                        ERR_MERCHANT_HAS_ORDER, exist.getMerchantName(), activeOrderCount),
+                    ERR_MERCHANT_HAS_ORDER);
             }
         }
         return merchantMapper.deleteMerchantByIds(merchantIds);

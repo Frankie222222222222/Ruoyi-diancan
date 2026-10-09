@@ -126,8 +126,9 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="200" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="240" class-name="small-padding fixed-width">
         <template #default="scope">
+          <el-button link type="primary" icon="View" @click="handleDetail(scope.row)" v-hasPermi="['takeout:merchant:query']">详情</el-button>
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['takeout:merchant:edit']">修改</el-button>
           <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['takeout:merchant:remove']">删除</el-button>
         </template>
@@ -205,17 +206,91 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 详情抽屉：展示商家统计概览 -->
+    <el-drawer v-model="detailOpen" title="商家详情" direction="rtl" size="520px" :with-header="true">
+      <div v-loading="detailLoading" style="padding: 0 16px">
+        <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #303133">
+          {{ detail.merchantName }}
+        </h3>
+        <el-descriptions :column="1" border size="small" style="margin-bottom: 16px">
+          <el-descriptions-item label="商家编号">{{ detail.merchantId }}</el-descriptions-item>
+          <el-descriptions-item label="联系人">{{ detail.contactName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="联系电话">{{ detail.contactPhone || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="地址">{{ detail.address || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="营业状态">
+            <el-tag :type="detail.status === '0' ? 'success' : 'info'">
+              {{ detail.status === '0' ? '营业中' : '已打烊' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="审核状态">
+            <el-tag v-if="detail.auditStatus === '0'" type="warning">待审核</el-tag>
+            <el-tag v-else-if="detail.auditStatus === '1'" type="success">通过</el-tag>
+            <el-tag v-else type="danger">拒绝</el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <h4 style="margin: 16px 0 8px 0; font-size: 14px; color: #303133">📊 经营数据</h4>
+        <el-row :gutter="12" v-if="stat">
+          <el-col :span="12" style="margin-bottom: 12px">
+            <el-card shadow="hover" body-style="padding: 12px">
+              <div style="color: #909399; font-size: 12px">菜品数</div>
+              <div style="font-size: 22px; font-weight: 600; color: #409EFF; margin-top: 4px">
+                {{ stat.dishCount ?? 0 }}
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="12" style="margin-bottom: 12px">
+            <el-card shadow="hover" body-style="padding: 12px">
+              <div style="color: #909399; font-size: 12px">订单总数</div>
+              <div style="font-size: 22px; font-weight: 600; color: #67C23A; margin-top: 4px">
+                {{ stat.orderCount ?? 0 }}
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="12" style="margin-bottom: 12px">
+            <el-card shadow="hover" body-style="padding: 12px">
+              <div style="color: #909399; font-size: 12px">今日订单</div>
+              <div style="font-size: 22px; font-weight: 600; color: #E6A23C; margin-top: 4px">
+                {{ stat.todayOrderCount ?? 0 }}
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="12" style="margin-bottom: 12px">
+            <el-card shadow="hover" body-style="padding: 12px">
+              <div style="color: #909399; font-size: 12px">今日实付</div>
+              <div style="font-size: 22px; font-weight: 600; color: #F56C6C; margin-top: 4px">
+                ¥ {{ Number(stat.todayAmount || 0).toFixed(2) }}
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="24">
+            <el-card shadow="hover" body-style="padding: 12px">
+              <div style="color: #909399; font-size: 12px">近 30 日实付总额</div>
+              <div style="font-size: 26px; font-weight: 600; color: #303133; margin-top: 4px">
+                ¥ {{ Number(stat.totalAmount30d || 0).toFixed(2) }}
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+        <el-empty v-else-if="!detailLoading" description="暂无统计数据" />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup name="TakeoutMerchant">
-import { listMerchant, getMerchant, addMerchant, updateMerchant, delMerchant, changeMerchantStatus, auditMerchant } from "@/api/takeout/merchant"
+import { listMerchant, getMerchant, addMerchant, updateMerchant, delMerchant, changeMerchantStatus, auditMerchant, statMerchant } from "@/api/takeout/merchant"
 
 const { proxy } = getCurrentInstance()
 
 const merchantList = ref([])
 const open = ref(false)
 const auditOpen = ref(false)
+const detailOpen = ref(false)
+const detailLoading = ref(false)
+const detail = ref({})
+const stat = ref(null)
 const loading = ref(true)
 const showSearch = ref(true)
 const ids = ref([])
@@ -304,6 +379,23 @@ function handleUpdate(row) {
   })
 }
 
+// 打开详情抽屉 + 加载统计
+function handleDetail(row) {
+  detailOpen.value = true
+  detailLoading.value = true
+  stat.value = null
+  getMerchant(row.merchantId).then(res => {
+    detail.value = res.data
+    return statMerchant(row.merchantId)
+  }).then(res => {
+    stat.value = res.data
+  }).catch(() => {
+    stat.value = null
+  }).finally(() => {
+    detailLoading.value = false
+  })
+}
+
 function submitForm() {
   proxy.$refs["merchantRef"].validate(valid => {
     if (valid) {
@@ -369,5 +461,10 @@ function cancel() {
 
 onMounted(() => {
   getList()
+  // 若 URL 带 ?merchantId=X，自动打开详情抽屉（用于从订单页跳转过来）
+  const merchantId = proxy.$route.query.merchantId
+  if (merchantId) {
+    handleDetail({ merchantId: Number(merchantId) })
+  }
 })
 </script>

@@ -414,5 +414,21 @@ onMounted(() => {
   getMerchantOptions()
   getOrderStatusDict().then(res => { statusDict.value = res.data || {} })
   getList()
+  // 若 URL 带 ?dishId=X，从订单页跳转过来时自动打开订单来源
+  const dishId = proxy.$route.query.dishId
+  if (dishId) {
+    // 列表加载完后取菜名（仅作为兜底）
+    setTimeout(() => {
+      const target = dishList.value.find(d => d.dishId === Number(dishId))
+      if (target) {
+        openOrderSource(target)
+      } else {
+        // 列表无此菜品时，用 getDish 取名称
+        getDish(dishId).then(res => {
+          if (res.data) openOrderSource(res.data)
+        }).catch(() => {})
+      }
+    }, 500)
+  }
 })
 </script>

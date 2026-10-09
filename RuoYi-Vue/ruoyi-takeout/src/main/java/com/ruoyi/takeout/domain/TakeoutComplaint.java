@@ -39,6 +39,12 @@ public class TakeoutComplaint extends BaseEntity
     @Excel(name = "类型", readConverterExp = "0=退款申请,1=投诉商家,2=投诉骑手,3=其他")
     private String type;
 
+    /**
+     * 兼容前端习惯的别名（实际存的是 type，getter 暴露给前端叫 complaintType）
+     * 前端传来 complaintType 时会 setComplaintType，自动映射到 this.type
+     */
+    private String complaintType;
+
     /** 投诉/退款原因 */
     @Excel(name = "原因")
     private String reason;
@@ -170,7 +176,12 @@ public class TakeoutComplaint extends BaseEntity
     public void setType(String type)
     {
         this.type = type;
+        this.complaintType = type;
     }
+
+    /** 前端别名：setComplaintType 实际写回 this.type */
+    public String getComplaintType() { return type; }
+    public void setComplaintType(String complaintType) { this.type = complaintType; }
 
     public String getReason()
     {

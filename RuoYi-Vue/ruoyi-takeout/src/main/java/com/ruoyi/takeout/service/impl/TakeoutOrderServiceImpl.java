@@ -16,7 +16,11 @@ import com.ruoyi.takeout.domain.TakeoutOrderItem;
 import com.ruoyi.takeout.enums.OrderStatusEnum;
 import com.ruoyi.takeout.mapper.DishMapper;
 import com.ruoyi.takeout.mapper.TakeoutOrderMapper;
+import com.ruoyi.takeout.payment.PaymentChannel;
 import com.ruoyi.takeout.service.ITakeoutOrderService;
+import com.ruoyi.takeout.service.ITakeoutPaymentService;
+import com.ruoyi.takeout.util.OrderNoGenerator;
+import org.springframework.context.annotation.Lazy;
 
 /**
  * 订单 Service 业务实现
@@ -37,12 +41,17 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
     private static final int ERR_CANCEL_NOT_ALLOW  = 2005;
     private static final int ERR_STOCK_NOT_ENOUGH  = 2006;
     private static final int ERR_DISH_NOT_FOUND    = 2007;
+    private static final int ERR_DISH_MERCHANT_MISMATCH = 2008;
 
     @Autowired
     private TakeoutOrderMapper orderMapper;
 
     @Autowired
     private DishMapper dishMapper;
+
+    @Autowired
+    @Lazy
+    private ITakeoutPaymentService paymentService;
 
     @Override
     public List<TakeoutOrder> selectOrderList(TakeoutOrder query)
@@ -86,6 +95,11 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
         {
             order.setPayStatus("0");
         }
+        // P2-B: 调用方没传 orderNo 时，服务端兜底生成（避免 controller 漏传导致 NULL）
+        if (StringUtils.isEmpty(order.getOrderNo()))
+        {
+            order.setOrderNo(OrderNoGenerator.generate());
+        }
         if (!checkOrderNoUnique(order))
         {
             throw new ServiceException(
@@ -95,9 +109,26 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
         order.setCreateBy(SecurityUtils.getUsername());
         order.setCreateTime(DateUtils.getNowDate());
         int rows = orderMapper.insertOrder(order);
+        // P2: 订单创建成功后挂一条 PENDING 支付记录(失败不阻塞下单,仅记日志)
+        if (rows > 0)
+        {
+            try
+            {
+                String defaultChannel = StringUtils.isEmpty(order.getPayMethod()) ? "MOCK" : order.getPayMethod();
+                paymentService.createPaymentRecord(
+                        order.getOrderId(),
+                        order.getOrderNo(),
+                        order.getTotalAmount(),
+                        PaymentChannel.fromCode(defaultChannel));
+            }
+            catch (Exception e)
+            {
+                log.warn("[order.create] 挂单支付记录失败 orderId={} err={}", order.getOrderId(), e.getMessage());
+            }
+        }
         if (rows > 0 && order.getOrderItems() != null && !order.getOrderItems().isEmpty())
         {
-            // G1: 预校验 + 扣库存 + 加销量（任一失败回滚整笔订单）
+            // G1: 预校验 + 跨商家一致性 + 扣库存 + 加销量（任一失败回滚整笔订单）
             for (TakeoutOrderItem item : order.getOrderItems())
             {
                 if (item.getDishId() == null || item.getQuantity() == null || item.getQuantity() <= 0)
@@ -112,6 +143,15 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
                     throw new ServiceException(
                         String.format("[ERR_%d] 菜品不存在，dishId=%s", ERR_DISH_NOT_FOUND, item.getDishId()),
                         ERR_DISH_NOT_FOUND);
+                }
+                // G6: 跨商家一致性 —— 订单的所有明细菜品必须属于同一个商家
+                if (order.getMerchantId() != null && d.getMerchantId() != null
+                        && !order.getMerchantId().equals(d.getMerchantId()))
+                {
+                    throw new ServiceException(
+                        String.format("[ERR_%d] 订单所属商家(%s)与菜品「%s」所属商家(%s)不一致，请勿混合下单",
+                            ERR_DISH_MERCHANT_MISMATCH, order.getMerchantId(), d.getDishName(), d.getMerchantId()),
+                        ERR_DISH_MERCHANT_MISMATCH);
                 }
                 if (d.getStock() != null && d.getStock() < item.getQuantity())
                 {
@@ -184,6 +224,24 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
         {
             upd.setCompleteTime(DateUtils.getNowDate());
         }
+        // P2-A: 状态变更为"已退款(7)"时，归还库存并回退销量（与 cancelOrder 对称）
+        if (OrderStatusEnum.REFUNDED.getCode().equals(targetStatus))
+        {
+            List<TakeoutOrderItem> items = orderMapper.selectOrderItemsByOrderId(orderId);
+            if (items != null)
+            {
+                for (TakeoutOrderItem item : items)
+                {
+                    Dish stockDelta = new Dish();
+                    stockDelta.setDishId(item.getDishId());
+                    stockDelta.setStock(item.getQuantity());
+                    stockDelta.setUpdateBy(SecurityUtils.getUsername());
+                    dishMapper.adjustDishStock(stockDelta);
+                    dishMapper.decrDishSales(item.getDishId(), item.getQuantity());
+                }
+            }
+            log.info("order refunded: stock+sales reverted, id={}", orderId);
+        }
         int rows = orderMapper.updateOrderStatus(upd);
         log.info("order status changed: id={} from={} to={}", orderId, exist.getStatus(), targetStatus);
         return rows;
@@ -209,7 +267,7 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
                 String.format("[ERR_%d] 当前状态「%s」不允许取消", ERR_CANCEL_NOT_ALLOW, cur),
                 ERR_CANCEL_NOT_ALLOW);
         }
-        // G2: 取消时还库存（仅未发货状态，因为已发货商品已出库）
+        // G2: 取消时还库存 + 减销量（库存因取消归还，销量因订单未成交回退）
         List<TakeoutOrderItem> items = orderMapper.selectOrderItemsByOrderId(orderId);
         if (items != null)
         {
@@ -220,6 +278,8 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
                 stockDelta.setStock(item.getQuantity());
                 stockDelta.setUpdateBy(SecurityUtils.getUsername());
                 dishMapper.adjustDishStock(stockDelta);
+                // P2-A: 取消时同步回退销量，避免"取消后销量虚高"
+                dishMapper.decrDishSales(item.getDishId(), item.getQuantity());
             }
         }
         TakeoutOrder upd = new TakeoutOrder();
@@ -259,5 +319,15 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
             orderMapper.deleteOrderItemsByOrderId(id);
         }
         return orderMapper.deleteOrderByIds(orderIds);
+    }
+
+    @Override
+    public java.util.Map<String, Object> statByMerchantId(Long merchantId)
+    {
+        if (merchantId == null)
+        {
+            return new java.util.HashMap<>();
+        }
+        return orderMapper.statByMerchantId(merchantId);
     }
 }

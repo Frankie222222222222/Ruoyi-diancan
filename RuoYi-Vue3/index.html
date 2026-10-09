@@ -9,6 +9,14 @@
   <link rel="icon" href="/favicon.ico">
   <title>%VITE_APP_TITLE%</title>
   <!--[if lt IE 11]><script>window.location.href='/html/ie.html';</script><![endif]-->
+
+  <!-- P3: 高德地图 JS API 2.0(走 CDN 引入,避免 Element Plus + npm 包 ESM 兼容问题) -->
+  <script>
+    window._AMAP_SECURITY_CONFIG = {
+      securityJsCode: '%VITE_AMAP_SECURITY%'
+    }
+  </script>
+  <script src="https://webapi.amap.com/maps?v=2.0&key=%VITE_AMAP_KEY%&plugin=AMap.Driving,AMap.Geocoder"></script>
   <style>
     html,
     body,

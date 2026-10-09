@@ -49,4 +49,10 @@ public interface ITakeoutOrderService
      * 逻辑删除订单
      */
     int deleteOrderByIds(Long[] orderIds);
+
+    /**
+     * 商家统计概览（详情抽屉用）
+     * @return Map { dishCount, orderCount, todayOrderCount, totalAmount30d, todayAmount }
+     */
+    java.util.Map<String, Object> statByMerchantId(Long merchantId);
 }

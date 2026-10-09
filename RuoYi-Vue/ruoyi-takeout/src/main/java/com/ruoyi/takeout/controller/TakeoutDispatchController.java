@@ -47,10 +47,14 @@ public class TakeoutDispatchController extends BaseController
     @PostMapping("/create")
     public AjaxResult create(@RequestBody TakeoutDispatch dispatch)
     {
+        if (dispatch == null || dispatch.getOrderId() == null)
+        {
+            return error("订单ID不能为空");
+        }
         int rows = dispatchService.createDispatchForOrder(dispatch.getOrderId(),
                 dispatch.getRiderId(),
                 dispatch.getDispatchType());
-        return rows > 0 ? success() : error();
+        return rows > 0 ? success() : error("派单失败，请重试");
     }
 
     /** 骑手抢单 */

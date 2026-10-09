@@ -14,6 +14,23 @@
       </el-form-item>
     </el-form>
 
+    <!-- 地图：实时查看进行中骑手位置(可折叠) -->
+    <el-card shadow="never" style="margin-bottom: 12px">
+      <template #header>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="cursor:pointer" @click="mapCollapsed = !mapCollapsed">
+            <el-icon><Location /></el-icon>
+            实时配送地图(高德)
+            <el-icon style="margin-left:4px"><component :is="mapCollapsed ? 'ArrowDown' : 'ArrowUp'" /></el-icon>
+          </span>
+          <span style="color:#909399;font-size:12px">每 30s 自动刷新;绿色=配送中,蓝色=已接单,橙色=待接单</span>
+        </div>
+      </template>
+      <div v-show="!mapCollapsed" style="height: 360px">
+        <RiderMap />
+      </div>
+    </el-card>
+
     <!-- 三栏布局：订单池 / 操作区 / 骑手池 -->
     <el-row :gutter="12">
       <!-- 左：待派单订单池 -->
@@ -39,6 +56,17 @@
               <template #default="scope">¥{{ scope.row.totalAmount }}</template>
             </el-table-column>
             <el-table-column label="收货人" prop="receiverName" width="80" align="center" />
+            <el-table-column label="操作" width="88" align="center" fixed="right">
+              <template #default="scope">
+                <el-button
+                  type="primary"
+                  size="small"
+                  icon="Check"
+                  :disabled="isOrderDispatched(scope.row)"
+                  @click="pickOrder(scope.row)"
+                >选这个</el-button>
+              </template>
+            </el-table-column>
           </el-table>
         </el-card>
       </el-col>
@@ -76,9 +104,9 @@
             <el-alert type="info" :closable="false" show-icon>
               <template #title>操作流程</template>
               <div style="font-size:12px;line-height:1.6">
-                1. 左侧选订单<br />
-                2. 右侧选骑手<br />
-                3. 点派单/改派
+                直接点行内按钮更快：<br />
+                ① 左侧订单行 → <b>选这个</b><br />
+                ② 右侧骑手行 → <b>派给TA</b>
               </div>
             </el-alert>
           </div>
@@ -97,7 +125,7 @@
           <el-table
             ref="riderTableRef"
             :data="availableRiderList"
-            height="380"
+            height="340"
             highlight-current-row
             @current-change="onRiderSelect"
             v-loading="riderLoading"
@@ -113,6 +141,17 @@
                 <el-tag v-if="scope.row.activeCount >= 3" type="danger" size="small">{{ scope.row.activeCount }} 忙</el-tag>
                 <el-tag v-else-if="scope.row.activeCount > 0" type="warning" size="small">{{ scope.row.activeCount }}</el-tag>
                 <el-tag v-else type="success" size="small">空闲</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100" align="center" fixed="right">
+              <template #default="scope">
+                <el-button
+                  type="success"
+                  size="small"
+                  icon="Promotion"
+                  :disabled="!selectedOrder"
+                  @click="dispatchToRider(scope.row)"
+                >派给TA</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -244,6 +283,7 @@ import { parseTime } from "@/utils/ruoyi"
 import { getCurrentInstance } from 'vue'
 import { ref, reactive, computed, toRefs, onMounted } from 'vue'
 import modal from '@/plugins/modal'
+import RiderMap from '@/components/Map/RiderMap.vue'
 
 const { proxy } = getCurrentInstance()
 console.log('[dispatch] proxy.$modal available:', !!proxy?.$modal)
@@ -275,6 +315,9 @@ const riderTableRef = ref(null)
 // ===== 弹窗 =====
 const cancelOpen = ref(false)
 const reassignOpen = ref(false)
+
+// ===== P3: 地图折叠 =====
+const mapCollapsed = ref(false)
 
 const statusDict = { '0': '待接单', '1': '已接单', '2': '取餐中', '3': '已送达', '4': '已取消' }
 
@@ -512,6 +555,37 @@ function handleDelete(row) {
 }
 
 onMounted(loadAll)
+
+// ===== 行内快捷按钮：选订单 / 派单给骑手 =====
+function pickOrder(orderRow) {
+  selectedOrder.value = orderRow
+  orderTableRef.value?.setCurrentRow(orderRow)
+  // 自动选中骑手池第一项 + 滚动到顶
+  if (availableRiderList.value.length > 0) {
+    const first = availableRiderList.value[0]
+    selectedRider.value = first
+    riderTableRef.value?.setCurrentRow(first)
+    riderTableRef.value?.setScrollTop(0)
+  }
+  modal.msgSuccess(`已选订单 #${orderRow.orderId}，请在右侧点"派给TA"`)
+}
+
+function dispatchToRider(riderRow) {
+  if (!selectedOrder.value) {
+    modal.msgWarning('请先在左侧订单池选一个订单')
+    return
+  }
+  selectedRider.value = riderRow
+  riderTableRef.value?.setCurrentRow(riderRow)
+  // 复用原 handleCreateDispatch 走弹确认 + 后端派单
+  handleCreateDispatch()
+}
+
+function isOrderDispatched(orderRow) {
+  return dispatchList.value.some(
+    d => d.orderId === orderRow.orderId && ['0', '1', '2'].includes(String(d.status))
+  )
+}
 </script>
 
 <style scoped>

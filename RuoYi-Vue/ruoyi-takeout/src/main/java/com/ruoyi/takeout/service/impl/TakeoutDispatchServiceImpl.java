@@ -38,6 +38,10 @@ public class TakeoutDispatchServiceImpl implements ITakeoutDispatchService
     private static final int ERR_RIDER_BUSY          = 8006;
     private static final int ERR_INVALID_STATUS      = 8007;
 
+    /** P3 占位坐标(杭州西湖):接单时写一个默认位置,后续由骑手 APP 上报覆盖 */
+    private static final Double DEFAULT_RIDER_LNG = 120.130890;
+    private static final Double DEFAULT_RIDER_LAT = 30.271660;
+
     @Autowired
     private TakeoutDispatchMapper dispatchMapper;
 
@@ -73,12 +77,38 @@ public class TakeoutDispatchServiceImpl implements ITakeoutDispatchService
     @Transactional(rollbackFor = Exception.class)
     public int createDispatchForOrder(Long orderId, Long riderId, String dispatchType)
     {
+        // 1. 校验订单存在 + 状态合法（仅 已支付/商家接单 可派单）
+        TakeoutOrder order = orderMapper.selectOrderById(orderId);
+        if (order == null)
+        {
+            throw new ServiceException("[ERR_8010] 订单不存在 orderId=" + orderId, 8010);
+        }
+        String orderStatus = order.getStatus();
+        if (!"1".equals(orderStatus) && !"2".equals(orderStatus))
+        {
+            throw new ServiceException("[ERR_8011] 订单当前状态(" + orderStatusDict(orderStatus) + ")不可派单，仅「已支付/商家接单」可派",
+                    8011);
+        }
+        // 2. 校验同一订单是否已有 active 派单
         TakeoutDispatch exist = dispatchMapper.selectActiveDispatchByOrderId(orderId);
         if (exist != null)
         {
-            log.warn("订单已有进行中的派单 orderId={}, dispatchId={}", orderId, exist.getDispatchId());
-            return 0;
+            throw new ServiceException(
+                    "[ERR_8008] 该订单已有进行中的派单（dispatchId=" + exist.getDispatchId()
+                            + ", status=" + exist.getStatus() + "），请先取消或完结",
+                    8008);
         }
+        // 3. 校验骑手（如果指定）
+        if (riderId != null)
+        {
+            int active = dispatchMapper.countActiveByRiderId(riderId);
+            if (active >= 3)
+            {
+                throw new ServiceException("[ERR_8006] 该骑手已有 " + active + " 个进行中的配送单(>=3)，请先完成",
+                        ERR_RIDER_BUSY);
+            }
+        }
+        // 4. 插入派单
         TakeoutDispatch d = new TakeoutDispatch();
         d.setOrderId(orderId);
         d.setRiderId(riderId);
@@ -86,7 +116,41 @@ public class TakeoutDispatchServiceImpl implements ITakeoutDispatchService
         d.setStatus(riderId == null ? "0" : "1"); // 有骑手=已接单,无骑手=待接单(抢单模式)
         d.setAssignTime(DateUtils.getNowDate());
         d.setCreateBy(SecurityUtils.getUsername());
-        return dispatchMapper.insertDispatch(d);
+        // P3: 自动写入骑手当前位置(开发期占位坐标,真实 GPS 由 APP 上报)
+        d.setRiderLng(riderId == null ? null : DEFAULT_RIDER_LNG);
+        d.setRiderLat(riderId == null ? null : DEFAULT_RIDER_LAT);
+        int rows = dispatchMapper.insertDispatch(d);
+        // 5. 派单成功后：同步推进订单状态到 接单(2) / 配送中(3)
+        if (rows > 0)
+        {
+            try
+            {
+                String nextStatus = riderId == null ? "2" : OrderStatusEnum.DELIVERING.getCode();
+                orderService.changeOrderStatus(orderId, nextStatus);
+            }
+            catch (Exception e)
+            {
+                log.warn("派单后同步订单状态失败 orderId={}, err={}", orderId, e.getMessage());
+            }
+        }
+        return rows;
+    }
+
+    /** 订单状态码 → 中文（用于错误提示） */
+    private String orderStatusDict(String code)
+    {
+        if (code == null) return "未知";
+        switch (code)
+        {
+            case "0": return "待支付";
+            case "1": return "已支付";
+            case "2": return "商家接单";
+            case "3": return "配送中";
+            case "4": return "已送达";
+            case "5": return "已完成";
+            case "6": return "已取消";
+            default:  return "未知(" + code + ")";
+        }
     }
 
     @Override
@@ -151,6 +215,9 @@ public class TakeoutDispatchServiceImpl implements ITakeoutDispatchService
         upd.setRiderId(riderId);
         upd.setStatus("1");
         upd.setAcceptTime(DateUtils.getNowDate());
+        upd.setRiderLng(DEFAULT_RIDER_LNG);
+        upd.setRiderLat(DEFAULT_RIDER_LAT);
+        upd.setLocationUpdateTime(DateUtils.getNowDate());
         upd.setUpdateBy(SecurityUtils.getUsername());
         int rows = dispatchMapper.updateDispatchStatus(upd);
         if (rows > 0)
@@ -181,6 +248,7 @@ public class TakeoutDispatchServiceImpl implements ITakeoutDispatchService
         upd.setDispatchId(dispatchId);
         upd.setStatus("2");
         upd.setPickupTime(DateUtils.getNowDate());
+        upd.setLocationUpdateTime(DateUtils.getNowDate());
         upd.setUpdateBy(SecurityUtils.getUsername());
         return dispatchMapper.updateDispatchStatus(upd);
     }
@@ -202,6 +270,7 @@ public class TakeoutDispatchServiceImpl implements ITakeoutDispatchService
         upd.setDispatchId(dispatchId);
         upd.setStatus("3");
         upd.setCompleteTime(DateUtils.getNowDate());
+        upd.setLocationUpdateTime(DateUtils.getNowDate());
         upd.setUpdateBy(SecurityUtils.getUsername());
         int rows = dispatchMapper.updateDispatchStatus(upd);
         if (rows > 0)

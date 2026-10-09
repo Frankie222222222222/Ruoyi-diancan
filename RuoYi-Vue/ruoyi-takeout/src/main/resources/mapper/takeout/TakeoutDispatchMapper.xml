@@ -138,6 +138,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="completeTime != null">complete_time = #{completeTime},</if>
             <if test="cancelTime != null">cancel_time = #{cancelTime},</if>
             <if test="cancelReason != null">cancel_reason = #{cancelReason},</if>
+            <if test="riderLng != null">rider_lng = #{riderLng},</if>
+            <if test="riderLat != null">rider_lat = #{riderLat},</if>
+            <if test="locationUpdateTime != null">location_update_time = #{locationUpdateTime},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = sysdate()
         </set>

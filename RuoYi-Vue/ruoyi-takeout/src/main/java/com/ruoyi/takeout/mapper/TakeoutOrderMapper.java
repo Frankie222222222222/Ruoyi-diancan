@@ -76,4 +76,15 @@ public interface TakeoutOrderMapper
      * 列出引用过某菜品的所有订单
      */
     List<TakeoutOrder> selectOrdersByDishId(@Param("dishId") Long dishId);
+
+    /**
+     * 统计某商家的"进行中"订单数（status ∈ {0,1,2,3}）—— 用于删除商家前拦截
+     */
+    int countUnfinishedByMerchantId(@Param("merchantId") Long merchantId);
+
+    /**
+     * 商家统计概览（详情抽屉用）
+     * 返回：菜品数 / 订单总数 / 今日订单数 / 近 30 日实付总额 / 今日实付总额
+     */
+    java.util.Map<String, Object> statByMerchantId(@Param("merchantId") Long merchantId);
 }

@@ -52,6 +52,14 @@ export function delMerchant(merchantIds) {
   })
 }
 
+// 商家统计概览
+export function statMerchant(merchantId) {
+  return request({
+    url: '/takeout/merchant/stat/' + merchantId,
+    method: 'get'
+  })
+}
+
 // 商家审核
 export function auditMerchant(data) {
   return request({

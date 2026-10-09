@@ -13,7 +13,22 @@
         style="margin-left: 8px"
       />
     </div>
-    <div ref="mapContainer" class="rider-map-container"></div>
+    <div ref="mapContainer" class="rider-map-container" v-show="!mapError"></div>
+    <div v-if="mapError" class="rider-map-error">
+      <el-alert type="error" :closable="false" show-icon>
+        <template #title>地图加载失败</template>
+        <div class="error-msg">{{ mapError }}</div>
+        <div class="error-tip">
+          排查步骤:
+          <ol>
+            <li>打开浏览器 F12 → Console,查看红色错误(常见:INVALID_USER_KEY / USERKEY_PLAT_NOMATCH)</li>
+            <li>检查高德开放平台 key 是否勾选"Web 端(JS API)"平台</li>
+            <li>检查 key 的"域名白名单"是否包含 <code>localhost</code> 或留空</li>
+            <li>确认浏览器能访问 <code>https://webapi.amap.com</code>(网络代理可能封禁)</li>
+          </ol>
+        </div>
+      </el-alert>
+    </div>
   </div>
 </template>
 
@@ -27,6 +42,7 @@ const mapContainer = ref(null)
 const markers = ref([])
 const loading = ref(false)
 const autoRefresh = ref(true)
+const mapError = ref('')  // 地图加载失败原因(空 = 正常)
 
 let mapInstance = null
 let markerObjs = []
@@ -60,7 +76,10 @@ async function reload() {
 }
 
 function drawMarkers(rows) {
-  if (!mapInstance || !window.AMap) return
+  if (!mapInstance || !window.AMap) {
+    // 地图还没初始化好(或加载失败),跳过 marker 绘制,避免在错误状态上叠加异常
+    return
+  }
   // 清理旧 marker
   markerObjs.forEach(m => mapInstance.remove(m))
   markerObjs = []
@@ -105,20 +124,60 @@ function drawMarkers(rows) {
   }
 }
 
+/**
+ * 轮询等待 window.AMap 加载完成(高德 CDN 可能慢,首次进 dispatch 时 script 还没好)
+ * 解决"刚切到 dispatch tab 时 window.AMap 还是 undefined"导致地图空白的问题
+ */
+function waitForAMap(timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    if (window.AMap) return resolve(window.AMap)
+    const start = Date.now()
+    const timer = setInterval(() => {
+      if (window.AMap) { clearInterval(timer); return resolve(window.AMap) }
+      if (Date.now() - start > timeoutMs) {
+        clearInterval(timer)
+        return reject(new Error('等待高德 JS API 超时(8s),可能 CDN 被封或 key 不可用'))
+      }
+    }, 100)
+  })
+}
+
 onMounted(async () => {
   await nextTick()
-  if (!mapContainer.value) return
-  if (!window.AMap) {
-    console.error('[RiderMap] 高德 JS API 未加载,请检查 index.html 是否引入')
+  if (!mapContainer.value) {
+    console.error('[RiderMap] mapContainer 还未挂载到 DOM')
+    return
+  }
+  let AMap
+  try {
+    AMap = await waitForAMap()
+  } catch (e) {
+    console.error('[RiderMap] 高德 JS API 未加载,请检查 index.html 是否引入 / 网络是否可达', e)
+    mapError.value = e.message
     return
   }
   // 默认中心:杭州西湖(占位坐标,真实场景可用浏览器定位)
-  mapInstance = new window.AMap.Map(mapContainer.value, {
-    zoom: 12,
-    center: [120.130890, 30.271660],
-    viewMode: '2D'
+  try {
+    mapInstance = new AMap.Map(mapContainer.value, {
+      zoom: 12,
+      center: [120.130890, 30.271660],
+      viewMode: '2D'
+    })
+  } catch (e) {
+    console.error('[RiderMap] AMap.Map 构造失败(常见:key 平台不匹配 / 配额耗尽 / 域名白名单不包含 localhost)', e)
+    mapError.value = 'AMap.Map 构造失败:' + (e?.message || e)
+    return
+  }
+
+  // 瓦片等异步资源就绪后,触发一次 resize 修掉"容器被 v-show 包过"导致的白板
+  mapInstance.on('complete', () => {
+    try { mapInstance && mapInstance.resize() } catch (_) {}
   })
+  // 兜底:1s 后再 resize 一次,防 complete 没触发
+  setTimeout(() => { try { mapInstance && mapInstance.resize() } catch (_) {} }, 1000)
+
   await reload()
+
   // 30s 自动轮询
   if (autoRefresh.value) {
     pollTimer = setInterval(reload, 30000)
@@ -162,6 +221,36 @@ onBeforeUnmount(() => {
   flex: 1;
   width: 100%;
   min-height: 280px;
+}
+.rider-map-error {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  min-height: 280px;
+  background: #fef0f0;
+}
+.error-msg {
+  font-size: 13px;
+  color: #f56c6c;
+  margin: 4px 0 8px;
+  word-break: break-all;
+}
+.error-tip {
+  font-size: 12px;
+  color: #606266;
+  line-height: 1.6;
+}
+.error-tip code {
+  background: #f5f7fa;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+.error-tip ol {
+  margin: 4px 0 0 16px;
+  padding: 0;
 }
 :deep(.rider-marker) {
   width: 60px;

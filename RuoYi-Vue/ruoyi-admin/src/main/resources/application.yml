@@ -171,3 +171,39 @@ minio:
   url-prefix: http://127.0.0.1:9000
   # 上传子路径前缀（用于在桶内分模块组织）
   path-prefix: takeout
+
+# ==================== 外卖支付网关配置 ====================
+# 真接入前: 留空 → 自动走 Mock(开发/测试用)
+# 真接入时: 填上密钥 → 微信/支付宝自动启用,Mock 兜底关闭
+payment:
+  # 默认渠道: MOCK(开发期) | WECHAT(生产) | ALIPAY(生产)
+  default-channel: MOCK
+  # 异步回调地址前缀(完整 URL = ${notify-base} + /takeout/payment/{channel}/notify)
+  notify-base: http://localhost:8080
+
+  # 微信支付 V3(申请地址: https://pay.weixin.qq.com/)
+  wechat:
+    # 商户号(必填,商户平台 → 商户信息)
+    mch-id:
+    # 商户 API V3 密钥(必填,32 位,商户平台 → API 安全 → APIv3 密钥)
+    api-v3-key:
+    # 商户证书序列号(必填,商户平台 → API 安全 → 微信支付公钥/商户私钥)
+    mch-serial-no:
+    # 商户私钥 apiclient_key.pem 文件路径(绝对路径)
+    private-key-path:
+    # 公众号/小程序 AppID(可选,C 端用)
+    app-id:
+  # 支付宝(申请地址: https://open.alipay.com/)
+  alipay:
+    # 应用 ID(必填,开放平台 → 我的应用 → APPID)
+    app-id:
+    # 应用私钥(必填,开放平台 → 应用 → 开发设置 → 应用私钥)
+    private-key:
+    # 支付宝公钥(必填,开放平台 → 应用 → 开发设置 → 支付宝公钥)
+    public-key:
+    # 签名方式: RSA2(推荐) | RSA
+    sign-type: RSA2
+    # 异步通知地址(可选,留空走 payment.notify-base)
+    notify-url:
+    # 同步跳转地址(用户支付完成后回到哪里)
+    return-url: http://localhost:8080/支付完成

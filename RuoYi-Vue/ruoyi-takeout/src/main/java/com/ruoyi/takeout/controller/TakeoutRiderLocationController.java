@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.takeout.domain.TakeoutDispatch;
@@ -24,6 +25,7 @@ import com.ruoyi.takeout.service.ITakeoutRiderLocationService;
  *
  * @author ruoyi
  */
+@Anonymous
 @RestController
 @RequestMapping("/takeout/riderLocation")
 public class TakeoutRiderLocationController extends BaseController

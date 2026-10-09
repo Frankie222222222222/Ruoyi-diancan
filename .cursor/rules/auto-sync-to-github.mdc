@@ -55,12 +55,18 @@ git remote add origin https://github.com/Frankie222222222222/Ruoyi-diancan.git
 # Then ask user for credential setup before first push
 ```
 
-## Token / SSH setup (only if not already configured)
+## Token / SSH setup (已完成，不要重做)
 
-Guide the user with ONE clear step at a time:
-1. Check if credential helper exists: `git config --global credential.helper`
-2. If none, recommend PAT: https://github.com/settings/tokens (classic, `repo` scope), then `git remote set-url origin https://<TOKEN>@github.com/Frankie222222222222/Ruoyi-diancan.git`
-3. Or SSH: `ssh-keygen -t ed25519` + add public key at https://github.com/settings/keys
+当前配置：
+- SSH key 已生成：`C:\Users\ASUS\.ssh\github_ruoyi_ed25519`（公钥已添加到 GitHub）
+- Remote URL：`https://github.com/Frankie222222222222/Ruoyi-diancan.git`
+- 认证：PAT 已存入 Windows Credential Manager（`cmdkey`），不在 URL 里明文存储
+- ⚠️ 注意：国内网络 SSH 端口（22/443）被封，走 HTTPS
+
+如需重配凭证：
+1. 生成 PAT：https://github.com/settings/tokens (classic, `repo` scope)
+2. 存入凭据管理器：`cmdkey /generic:https://github.com /user:<用户名> /pass:<PAT>`
+3. 或改回 URL 形式：`git remote set-url origin https://<TOKEN>@github.com/Frankie222222222222/Ruoyi-diancan.git`
 
 ## Post-task checklist
 

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.takeout.mapper.TakeoutStatisticsMapper">
+
+    <select id="getDashboard" resultType="java.util.Map">
+        SELECT
+            (SELECT COUNT(*) FROM takeout_order WHERE del_flag='0') AS totalOrders,
+            (SELECT COUNT(*) FROM takeout_order WHERE del_flag='0' AND DATE(create_time)=CURDATE()) AS todayOrders,
+            (SELECT IFNULL(SUM(total_amount),0) FROM takeout_order WHERE del_flag='0' AND DATE(create_time)=CURDATE() AND status IN ('1','2','3','4','5')) AS todayRevenue,
+            (SELECT COUNT(*) FROM takeout_user WHERE del_flag='0') AS totalUsers,
+            (SELECT COUNT(*) FROM takeout_rider WHERE del_flag='0') AS totalRiders,
+            (SELECT COUNT(*) FROM takeout_rider WHERE del_flag='0' AND status='0') AS onlineRiders,
+            (SELECT COUNT(*) FROM takeout_merchant WHERE del_flag='0') AS totalMerchants,
+            (SELECT COUNT(*) FROM takeout_complaint WHERE del_flag='0' AND status='0') AS pendingComplaints,
+            (SELECT COUNT(*) FROM takeout_dispatch WHERE del_flag='0' AND status IN ('1','2')) AS activeDispatches
+    </select>
+
+    <select id="getOrderTrend" resultType="java.util.Map">
+        SELECT DATE(create_time) AS date,
+               COUNT(*) AS orderCount,
+               IFNULL(SUM(total_amount),0) AS revenue
+        FROM takeout_order
+        WHERE del_flag='0' AND create_time >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(create_time)
+        ORDER BY date ASC
+    </select>
+
+    <select id="getTopMerchants" resultType="java.util.Map">
+        SELECT m.merchant_id AS merchantId, m.merchant_name AS merchantName,
+               COUNT(o.order_id) AS orderCount,
+               IFNULL(SUM(o.total_amount),0) AS totalRevenue
+        FROM takeout_merchant m
+        LEFT JOIN takeout_order o ON m.merchant_id = o.merchant_id AND o.del_flag='0' AND o.status IN ('1','2','3','4','5')
+        WHERE m.del_flag='0'
+        GROUP BY m.merchant_id, m.merchant_name
+        ORDER BY totalRevenue DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="getTopDishes" resultType="java.util.Map">
+        SELECT d.dish_id AS dishId, d.dish_name AS dishName,
+               IFNULL(SUM(i.quantity),0) AS totalQuantity,
+               IFNULL(SUM(i.subtotal),0) AS totalAmount
+        FROM takeout_dish d
+        LEFT JOIN takeout_order_item i ON d.dish_id = i.dish_id
+        LEFT JOIN takeout_order o ON i.order_id = o.order_id AND o.del_flag='0' AND o.status IN ('1','2','3','4','5')
+        WHERE d.del_flag='0'
+        GROUP BY d.dish_id, d.dish_name
+        ORDER BY totalQuantity DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="getTopRiders" resultType="java.util.Map">
+        SELECT r.rider_id AS riderId, r.name AS riderName, r.phone AS phone,
+               COUNT(d.dispatch_id) AS deliveryCount,
+               r.rating AS rating
+        FROM takeout_rider r
+        LEFT JOIN takeout_dispatch d ON r.rider_id = d.rider_id AND d.del_flag='0' AND d.status='3'
+        WHERE r.del_flag='0'
+        GROUP BY r.rider_id, r.name, r.phone, r.rating
+        ORDER BY deliveryCount DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countTodayOrders" resultType="int">
+        SELECT COUNT(*) FROM takeout_order WHERE del_flag='0' AND DATE(create_time)=CURDATE()
+    </select>
+
+    <select id="sumTodayRevenue" resultType="java.math.BigDecimal">
+        SELECT IFNULL(SUM(total_amount),0) FROM takeout_order
+        WHERE del_flag='0' AND DATE(create_time)=CURDATE() AND status IN ('1','2','3','4','5')
+    </select>
+</mapper>

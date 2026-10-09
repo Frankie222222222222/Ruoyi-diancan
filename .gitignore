@@ -2,24 +2,28 @@
 # Ruoyi-diancan 根目录 .gitignore
 # ==================================================
 
-# ===== 后端 Java 产物 (Maven / Gradle) =====
-target/
-build/
-*.class
-*.jar
-*.war
-.gradle/
-.mvn/
-mvnw
-mvnw.cmd
-*.iml
+# ===== 后端 Java 产物 (Maven / Gradle) — 所有子目录 =====
+**/target/
+**/build/
+**/.gradle/
+**/.mvn/
+**/mvnw
+**/mvnw.cmd
+**/*.iml
+**/*.class
+**/*.jar
+**/*.war
 
-# ===== 前端 Node 产物 =====
-node_modules/
-dist/
-.vite/
-.cache/
-*.local
+# ===== 前端 Node 产物 — 所有子目录 =====
+**/node_modules/
+**/dist/
+**/.vite/
+**/.cache/
+**/*.local
+**/*.map
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
 
 # ===== IDE / 编辑器 =====
 .idea/
@@ -58,6 +62,9 @@ logs/
 # ===== 编译缓存 =====
 **/__pycache__/
 **/.pytest_cache/
+**/bin/
+**/out/
+**/logs/
 
 # ===== 临时调试草稿（GBK 编码转换、SQL 抓取等） =====
 *RuoYi-Vue3-dish*.txt

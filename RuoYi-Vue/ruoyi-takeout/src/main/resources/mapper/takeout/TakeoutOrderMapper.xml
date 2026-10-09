@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.takeout.mapper.TakeoutOrderMapper">
+
+    <resultMap type="TakeoutOrder" id="TakeoutOrderResult">
+        <id     property="orderId"        column="order_id"        />
+        <result property="orderNo"        column="order_no"        />
+        <result property="userId"         column="user_id"         />
+        <result property="merchantId"     column="merchant_id"     />
+        <result property="merchantName"   column="merchant_name"   />
+        <result property="totalAmount"    column="total_amount"    />
+        <result property="deliveryFee"    column="delivery_fee"    />
+        <result property="discountAmount" column="discount_amount" />
+        <result property="actualAmount"   column="actual_amount"   />
+        <result property="couponUserId"   column="coupon_user_id"  />
+        <result property="status"         column="status"          />
+        <result property="payStatus"      column="pay_status"      />
+        <result property="payMethod"      column="pay_method"      />
+        <result property="receiverName"   column="receiver_name"   />
+        <result property="receiverPhone"  column="receiver_phone"  />
+        <result property="address"        column="address"         />
+        <result property="remark"         column="remark"          />
+        <result property="deliveryTime"   column="delivery_time"   />
+        <result property="payTime"        column="pay_time"        />
+        <result property="completeTime"   column="complete_time"   />
+        <result property="cancelReason"   column="cancel_reason"   />
+        <result property="delFlag"        column="del_flag"        />
+        <result property="createBy"       column="create_by"       />
+        <result property="createTime"     column="create_time"     />
+        <result property="updateBy"       column="update_by"       />
+        <result property="updateTime"     column="update_time"     />
+    </resultMap>
+
+    <resultMap type="TakeoutOrderItem" id="TakeoutOrderItemResult">
+        <id     property="itemId"     column="item_id"     />
+        <result property="orderId"    column="order_id"    />
+        <result property="dishId"     column="dish_id"     />
+        <result property="dishName"   column="dish_name"   />
+        <result property="dishImage"  column="dish_image"  />
+        <result property="price"      column="price"       />
+        <result property="quantity"   column="quantity"    />
+        <result property="subtotal"   column="subtotal"    />
+    </resultMap>
+
+    <sql id="selectOrderVo">
+        SELECT o.order_id, o.order_no, o.user_id, o.merchant_id,
+               (SELECT m.merchant_name FROM takeout_merchant m
+                  WHERE m.merchant_id = o.merchant_id AND m.del_flag = '0') AS merchant_name,
+               o.total_amount, o.delivery_fee, o.discount_amount, o.actual_amount, o.coupon_user_id, o.status, o.pay_status, o.pay_method,
+               o.receiver_name, o.receiver_phone, o.address, o.remark,
+               o.delivery_time, o.pay_time, o.complete_time, o.cancel_reason, o.del_flag,
+               o.create_by, o.create_time, o.update_by, o.update_time
+        FROM takeout_order o
+    </sql>
+
+    <select id="selectOrderList" parameterType="TakeoutOrder" resultMap="TakeoutOrderResult">
+        <include refid="selectOrderVo"/>
+        <where>
+            o.del_flag = '0'
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no LIKE CONCAT('%', #{orderNo}, '%')
+            </if>
+            <if test="merchantId != null">
+                AND o.merchant_id = #{merchantId}
+            </if>
+            <if test="userId != null">
+                AND o.user_id = #{userId}
+            </if>
+            <if test="status != null and status != ''">
+                AND o.status = #{status}
+            </if>
+            <if test="payStatus != null and payStatus != ''">
+                AND o.pay_status = #{payStatus}
+            </if>
+            <if test="receiverName != null and receiverName != ''">
+                AND o.receiver_name LIKE CONCAT('%', #{receiverName}, '%')
+            </if>
+            <if test="receiverPhone != null and receiverPhone != ''">
+                AND o.receiver_phone LIKE CONCAT('%', #{receiverPhone}, '%')
+            </if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                AND o.create_time &gt;= #{params.beginTime}
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                AND o.create_time &lt;= #{params.endTime}
+            </if>
+        </where>
+        ORDER BY o.order_id DESC
+    </select>
+
+    <select id="selectOrderById" parameterType="Long" resultMap="TakeoutOrderResult">
+        <include refid="selectOrderVo"/>
+        WHERE o.del_flag = '0' AND o.order_id = #{orderId}
+    </select>
+
+    <select id="selectOrderByOrderNo" parameterType="String" resultMap="TakeoutOrderResult">
+        <include refid="selectOrderVo"/>
+        WHERE o.del_flag = '0' AND o.order_no = #{orderNo}
+        LIMIT 1
+    </select>
+
+    <select id="selectOrderItemsByOrderId" parameterType="Long" resultMap="TakeoutOrderItemResult">
+        SELECT item_id, order_id, dish_id, dish_name, dish_image, price, quantity, subtotal
+        FROM takeout_order_item
+        WHERE order_id = #{orderId}
+        ORDER BY item_id ASC
+    </select>
+
+    <insert id="insertOrder" parameterType="TakeoutOrder" useGeneratedKeys="true" keyProperty="orderId">
+        INSERT INTO takeout_order (
+            <if test="orderNo != null and orderNo != ''">order_no,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="merchantId != null">merchant_id,</if>
+            <if test="totalAmount != null">total_amount,</if>
+            <if test="deliveryFee != null">delivery_fee,</if>
+            <if test="discountAmount != null">discount_amount,</if>
+            <if test="actualAmount != null">actual_amount,</if>
+            <if test="couponUserId != null">coupon_user_id,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="payStatus != null and payStatus != ''">pay_status,</if>
+            <if test="payMethod != null and payMethod != ''">pay_method,</if>
+            <if test="receiverName != null and receiverName != ''">receiver_name,</if>
+            <if test="receiverPhone != null and receiverPhone != ''">receiver_phone,</if>
+            <if test="address != null and address != ''">address,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="deliveryTime != null">delivery_time,</if>
+            <if test="payTime != null">pay_time,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        ) VALUES (
+            <if test="orderNo != null and orderNo != ''">#{orderNo},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="merchantId != null">#{merchantId},</if>
+            <if test="totalAmount != null">#{totalAmount},</if>
+            <if test="deliveryFee != null">#{deliveryFee},</if>
+            <if test="discountAmount != null">#{discountAmount},</if>
+            <if test="actualAmount != null">#{actualAmount},</if>
+            <if test="couponUserId != null">#{couponUserId},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="payStatus != null and payStatus != ''">#{payStatus},</if>
+            <if test="payMethod != null and payMethod != ''">#{payMethod},</if>
+            <if test="receiverName != null and receiverName != ''">#{receiverName},</if>
+            <if test="receiverPhone != null and receiverPhone != ''">#{receiverPhone},</if>
+            <if test="address != null and address != ''">#{address},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="deliveryTime != null">#{deliveryTime},</if>
+            <if test="payTime != null">#{payTime},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            NOW()
+        )
+    </insert>
+
+    <insert id="insertOrderItems" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="itemId">
+        INSERT INTO takeout_order_item (order_id, dish_id, dish_name, dish_image, price, quantity, subtotal) VALUES
+        <foreach collection="list" item="it" separator=",">
+            (#{it.orderId}, #{it.dishId}, #{it.dishName}, #{it.dishImage}, #{it.price}, #{it.quantity}, #{it.subtotal})
+        </foreach>
+    </insert>
+
+    <update id="updateOrder" parameterType="TakeoutOrder">
+        UPDATE takeout_order
+        <set>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="payStatus != null and payStatus != ''">pay_status = #{payStatus},</if>
+            <if test="payMethod != null">pay_method = #{payMethod},</if>
+            <if test="receiverName != null and receiverName != ''">receiver_name = #{receiverName},</if>
+            <if test="receiverPhone != null and receiverPhone != ''">receiver_phone = #{receiverPhone},</if>
+            <if test="address != null and address != ''">address = #{address},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="deliveryTime != null">delivery_time = #{deliveryTime},</if>
+            <if test="completeTime != null">complete_time = #{completeTime},</if>
+            <if test="cancelReason != null">cancel_reason = #{cancelReason},</if>
+            <if test="totalAmount != null">total_amount = #{totalAmount},</if>
+            <if test="deliveryFee != null">delivery_fee = #{deliveryFee},</if>
+            <if test="discountAmount != null">discount_amount = #{discountAmount},</if>
+            <if test="actualAmount != null">actual_amount = #{actualAmount},</if>
+            <if test="payTime != null">pay_time = #{payTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = NOW()
+        </set>
+        WHERE order_id = #{orderId} AND del_flag = '0'
+    </update>
+
+    <update id="updateOrderStatus" parameterType="TakeoutOrder">
+        UPDATE takeout_order
+        <set>
+            status = #{status},
+            <if test="completeTime != null">complete_time = #{completeTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = NOW()
+        </set>
+        WHERE order_id = #{orderId} AND del_flag = '0'
+    </update>
+
+    <update id="cancelOrder" parameterType="TakeoutOrder">
+        UPDATE takeout_order
+        <set>
+            status = #{status},
+            cancel_reason = #{cancelReason},
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = NOW()
+        </set>
+        WHERE order_id = #{orderId} AND del_flag = '0'
+    </update>
+
+    <update id="deleteOrderByIds" parameterType="Long">
+        UPDATE takeout_order SET del_flag = '2', update_time = NOW()
+        WHERE order_id IN
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <delete id="deleteOrderItemsByOrderId" parameterType="Long">
+        DELETE FROM takeout_order_item WHERE order_id = #{orderId}
+    </delete>
+
+    <!-- 统计某菜品被多少"未完成"订单引用（用于防误删） -->
+    <select id="countActiveOrdersByDishId" parameterType="Long" resultType="int">
+        SELECT COUNT(DISTINCT o.order_id)
+        FROM takeout_order_item ti
+        JOIN takeout_order o ON o.order_id = ti.order_id
+        WHERE ti.dish_id = #{dishId}
+          AND o.del_flag = '0'
+          AND o.status NOT IN ('5','6','7')
+    </select>
+
+    <!-- 列出引用过某菜品的所有订单（去重，按订单倒序） -->
+    <select id="selectOrdersByDishId" parameterType="Long" resultMap="TakeoutOrderResult">
+        SELECT DISTINCT o.order_id, o.order_no, o.user_id, o.merchant_id,
+               (SELECT m.merchant_name FROM takeout_merchant m
+                  WHERE m.merchant_id = o.merchant_id AND m.del_flag = '0') AS merchant_name,
+               o.total_amount, o.delivery_fee, o.discount_amount, o.actual_amount, o.coupon_user_id, o.status, o.pay_status, o.pay_method,
+               o.receiver_name, o.receiver_phone, o.address, o.remark,
+               o.delivery_time, o.pay_time, o.complete_time, o.cancel_reason, o.del_flag,
+               o.create_by, o.create_time, o.update_by, o.update_time
+        FROM takeout_order o
+        JOIN takeout_order_item ti ON ti.order_id = o.order_id
+        WHERE o.del_flag = '0' AND ti.dish_id = #{dishId}
+        ORDER BY o.order_id DESC
+    </select>
+
+</mapper>

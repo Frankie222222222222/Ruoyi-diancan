@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.takeout.mapper.TakeoutDispatchMapper">
+
+    <resultMap type="TakeoutDispatch" id="TakeoutDispatchResult">
+        <id     property="dispatchId"        column="dispatch_id"        />
+        <result property="orderId"           column="order_id"           />
+        <result property="riderId"           column="rider_id"           />
+        <result property="dispatchType"       column="dispatch_type"       />
+        <result property="status"             column="status"             />
+        <result property="assignTime"         column="assign_time"         />
+        <result property="acceptTime"         column="accept_time"         />
+        <result property="pickupTime"         column="pickup_time"         />
+        <result property="completeTime"       column="complete_time"       />
+        <result property="estimatedArrival"    column="estimated_arrival"   />
+        <result property="cancelTime"         column="cancel_time"         />
+        <result property="cancelReason"       column="cancel_reason"       />
+        <result property="deliveryDistance"   column="delivery_distance"   />
+        <result property="actualDistance"     column="actual_distance"     />
+        <result property="riderLng"           column="rider_lng"           />
+        <result property="riderLat"           column="rider_lat"           />
+        <result property="locationUpdateTime" column="location_update_time" />
+        <result property="delFlag"            column="del_flag"            />
+        <result property="createBy"           column="create_by"           />
+        <result property="createTime"         column="create_time"         />
+        <result property="updateBy"           column="update_by"           />
+        <result property="updateTime"         column="update_time"         />
+        <result property="remark"             column="remark"              />
+        <result property="orderNo"            column="order_no"            />
+        <result property="riderName"          column="rider_name"          />
+        <result property="riderPhone"         column="rider_phone"         />
+    </resultMap>
+
+    <sql id="selectDispatchVo">
+        select d.dispatch_id, d.order_id, d.rider_id, d.dispatch_type, d.status,
+               d.assign_time, d.accept_time, d.pickup_time, d.complete_time,
+               d.estimated_arrival, d.cancel_time, d.cancel_reason,
+               d.delivery_distance, d.actual_distance,
+               d.rider_lng, d.rider_lat, d.location_update_time,
+               d.del_flag, d.create_by, d.create_time, d.update_by, d.update_time, d.remark,
+               o.order_no,
+               r.name as rider_name, r.phone as rider_phone
+        from takeout_dispatch d
+        left join takeout_order o on d.order_id = o.order_id
+        left join takeout_rider r on d.rider_id = r.rider_id and r.del_flag = '0'
+    </sql>
+
+    <select id="selectDispatchList" parameterType="TakeoutDispatch" resultMap="TakeoutDispatchResult">
+        <include refid="selectDispatchVo"/>
+        <where>
+            d.del_flag = '0'
+            <if test="dispatchId != null">AND d.dispatch_id = #{dispatchId}</if>
+            <if test="orderId != null">AND d.order_id = #{orderId}</if>
+            <if test="riderId != null">AND d.rider_id = #{riderId}</if>
+            <if test="dispatchType != null and dispatchType != ''">AND d.dispatch_type = #{dispatchType}</if>
+            <if test="status != null and status != ''">AND d.status = #{status}</if>
+        </where>
+        order by d.dispatch_id desc
+    </select>
+
+    <select id="selectDispatchById" parameterType="Long" resultMap="TakeoutDispatchResult">
+        <include refid="selectDispatchVo"/>
+        where d.del_flag = '0' and d.dispatch_id = #{dispatchId}
+    </select>
+
+    <select id="selectActiveDispatchByOrderId" parameterType="Long" resultMap="TakeoutDispatchResult">
+        <include refid="selectDispatchVo"/>
+        where d.del_flag = '0' and d.order_id = #{orderId}
+          and d.status in ('0','1','2')
+        order by d.dispatch_id desc limit 1
+    </select>
+
+    <insert id="insertDispatch" parameterType="TakeoutDispatch" useGeneratedKeys="true" keyProperty="dispatchId">
+        insert into takeout_dispatch(
+            <if test="dispatchId != null">dispatch_id,</if>
+            <if test="orderId != null">order_id,</if>
+            <if test="riderId != null">rider_id,</if>
+            <if test="dispatchType != null and dispatchType != ''">dispatch_type,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="assignTime != null">assign_time,</if>
+            <if test="estimatedArrival != null">estimated_arrival,</if>
+            <if test="deliveryDistance != null">delivery_distance,</if>
+            <if test="riderLng != null">rider_lng,</if>
+            <if test="riderLat != null">rider_lat,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        ) values(
+            <if test="dispatchId != null">#{dispatchId},</if>
+            <if test="orderId != null">#{orderId},</if>
+            <if test="riderId != null">#{riderId},</if>
+            <if test="dispatchType != null and dispatchType != ''">#{dispatchType},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="assignTime != null">#{assignTime},</if>
+            <if test="estimatedArrival != null">#{estimatedArrival},</if>
+            <if test="deliveryDistance != null">#{deliveryDistance},</if>
+            <if test="riderLng != null">#{riderLng},</if>
+            <if test="riderLat != null">#{riderLat},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateDispatch" parameterType="TakeoutDispatch">
+        update takeout_dispatch
+        <set>
+            <if test="riderId != null">rider_id = #{riderId},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="acceptTime != null">accept_time = #{acceptTime},</if>
+            <if test="pickupTime != null">pickup_time = #{pickupTime},</if>
+            <if test="completeTime != null">complete_time = #{completeTime},</if>
+            <if test="cancelTime != null">cancel_time = #{cancelTime},</if>
+            <if test="cancelReason != null">cancel_reason = #{cancelReason},</if>
+            <if test="actualDistance != null">actual_distance = #{actualDistance},</if>
+            <if test="riderLng != null">rider_lng = #{riderLng},</if>
+            <if test="riderLat != null">rider_lat = #{riderLat},</if>
+            <if test="locationUpdateTime != null">location_update_time = #{locationUpdateTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where dispatch_id = #{dispatchId} and del_flag = '0'
+    </update>
+
+    <delete id="deleteDispatchByIds" parameterType="Long">
+        update takeout_dispatch set del_flag = '2' where dispatch_id in
+        <foreach collection="array" item="dispatchId" open="(" separator="," close=")">
+            #{dispatchId}
+        </foreach>
+    </delete>
+
+    <update id="updateDispatchStatus" parameterType="TakeoutDispatch">
+        update takeout_dispatch
+        <set>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="acceptTime != null">accept_time = #{acceptTime},</if>
+            <if test="pickupTime != null">pickup_time = #{pickupTime},</if>
+            <if test="completeTime != null">complete_time = #{completeTime},</if>
+            <if test="cancelTime != null">cancel_time = #{cancelTime},</if>
+            <if test="cancelReason != null">cancel_reason = #{cancelReason},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where dispatch_id = #{dispatchId} and del_flag = '0'
+    </update>
+
+    <select id="countActiveByRiderId" parameterType="Long" resultType="int">
+        select count(*) from takeout_dispatch
+        where del_flag = '0' and rider_id = #{riderId} and status in ('0','1','2')
+    </select>
+
+    <select id="selectByRiderId" parameterType="Long" resultMap="TakeoutDispatchResult">
+        <include refid="selectDispatchVo"/>
+        where d.del_flag = '0' and d.rider_id = #{riderId}
+        order by d.dispatch_id desc
+    </select>
+</mapper>

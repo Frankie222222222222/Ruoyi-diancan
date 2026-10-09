@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.takeout.mapper.TakeoutCouponMapper">
+
+    <resultMap type="TakeoutCoupon" id="TakeoutCouponResult">
+        <id     property="couponId"         column="coupon_id"         />
+        <result property="name"              column="name"              />
+        <result property="type"              column="type"              />
+        <result property="thresholdAmount"   column="threshold_amount"   />
+        <result property="discountAmount"    column="discount_amount"    />
+        <result property="discountRate"      column="discount_rate"     />
+        <result property="maxDiscount"       column="max_discount"      />
+        <result property="totalCount"        column="total_count"       />
+        <result property="remainCount"        column="remain_count"      />
+        <result property="perUserLimit"       column="per_user_limit"    />
+        <result property="startTime"          column="start_time"        />
+        <result property="endTime"            column="end_time"          />
+        <result property="status"             column="status"            />
+        <result property="merchantId"        column="merchant_id"       />
+        <result property="color"              column="color"             />
+        <result property="description"        column="description"       />
+        <result property="delFlag"            column="del_flag"          />
+        <result property="createBy"           column="create_by"         />
+        <result property="createTime"         column="create_time"       />
+        <result property="updateBy"           column="update_by"        />
+        <result property="updateTime"         column="update_time"       />
+        <result property="remark"              column="remark"           />
+        <result property="merchantName"       column="merchant_name"     />
+    </resultMap>
+
+    <resultMap type="TakeoutCouponUser" id="TakeoutCouponUserResult">
+        <id     property="id"            column="id"            />
+        <result property="userId"        column="user_id"       />
+        <result property="couponId"      column="coupon_id"     />
+        <result property="status"        column="status"        />
+        <result property="receiveTime"    column="receive_time"  />
+        <result property="usedTime"      column="used_time"     />
+        <result property="usedOrderId"   column="used_order_id" />
+        <result property="expireTime"    column="expire_time"   />
+        <result property="delFlag"       column="del_flag"      />
+        <result property="createBy"      column="create_by"     />
+        <result property="createTime"    column="create_time"   />
+        <result property="updateBy"      column="update_by"     />
+        <result property="updateTime"    column="update_time"   />
+        <result property="remark"        column="remark"        />
+        <result property="couponName"    column="coupon_name"   />
+        <result property="userNickname"  column="user_nickname"/>
+        <result property="orderNo"       column="order_no"     />
+    </resultMap>
+
+    <sql id="selectCouponVo">
+        select c.coupon_id, c.name, c.type, c.threshold_amount, c.discount_amount,
+               c.discount_rate, c.max_discount, c.total_count, c.remain_count,
+               c.per_user_limit, c.start_time, c.end_time, c.status,
+               c.merchant_id, c.color, c.description,
+               c.del_flag, c.create_by, c.create_time, c.update_by, c.update_time, c.remark,
+               m.merchant_name
+        from takeout_coupon c
+        left join takeout_merchant m on c.merchant_id = m.merchant_id and m.del_flag = '0'
+    </sql>
+
+    <sql id="selectUserCouponVo">
+        select cu.id, cu.user_id, cu.coupon_id, cu.status, cu.receive_time,
+               cu.used_time, cu.used_order_id, cu.expire_time,
+               cu.del_flag, cu.create_by, cu.create_time, cu.update_by, cu.update_time, cu.remark,
+               c.name as coupon_name, u.nickname as user_nickname, o.order_no
+        from takeout_coupon_user cu
+        left join takeout_coupon c on cu.coupon_id = c.coupon_id and c.del_flag = '0'
+        left join takeout_user u on cu.user_id = u.user_id and u.del_flag = '0'
+        left join takeout_order o on cu.used_order_id = o.order_id
+    </sql>
+
+    <select id="selectCouponList" parameterType="TakeoutCoupon" resultMap="TakeoutCouponResult">
+        <include refid="selectCouponVo"/>
+        <where>
+            c.del_flag = '0'
+            <if test="couponId != null">AND c.coupon_id = #{couponId}</if>
+            <if test="name != null and name != ''">
+                AND c.name like concat('%', #{name}, '%')
+            </if>
+            <if test="type != null and type != ''">AND c.type = #{type}</if>
+            <if test="status != null and status != ''">AND c.status = #{status}</if>
+            <if test="merchantId != null">AND c.merchant_id = #{merchantId}</if>
+        </where>
+        order by c.coupon_id desc
+    </select>
+
+    <select id="selectCouponById" parameterType="Long" resultMap="TakeoutCouponResult">
+        <include refid="selectCouponVo"/>
+        where c.del_flag = '0' and c.coupon_id = #{couponId}
+    </select>
+
+    <insert id="insertCoupon" parameterType="TakeoutCoupon" useGeneratedKeys="true" keyProperty="couponId">
+        insert into takeout_coupon(
+            <if test="couponId != null">coupon_id,</if>
+            <if test="name != null and name != ''">name,</if>
+            <if test="type != null and type != ''">type,</if>
+            <if test="thresholdAmount != null">threshold_amount,</if>
+            <if test="discountAmount != null">discount_amount,</if>
+            <if test="discountRate != null">discount_rate,</if>
+            <if test="maxDiscount != null">max_discount,</if>
+            <if test="totalCount != null">total_count,</if>
+            <if test="remainCount != null">remain_count,</if>
+            <if test="perUserLimit != null">per_user_limit,</if>
+            <if test="startTime != null">start_time,</if>
+            <if test="endTime != null">end_time,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="merchantId != null">merchant_id,</if>
+            <if test="color != null and color != ''">color,</if>
+            <if test="description != null">description,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        ) values(
+            <if test="couponId != null">#{couponId},</if>
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="type != null and type != ''">#{type},</if>
+            <if test="thresholdAmount != null">#{thresholdAmount},</if>
+            <if test="discountAmount != null">#{discountAmount},</if>
+            <if test="discountRate != null">#{discountRate},</if>
+            <if test="maxDiscount != null">#{maxDiscount},</if>
+            <if test="totalCount != null">#{totalCount},</if>
+            <if test="remainCount != null">#{remainCount},</if>
+            <if test="perUserLimit != null">#{perUserLimit},</if>
+            <if test="startTime != null">#{startTime},</if>
+            <if test="endTime != null">#{endTime},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="merchantId != null">#{merchantId},</if>
+            <if test="color != null and color != ''">#{color},</if>
+            <if test="description != null">#{description},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCoupon" parameterType="TakeoutCoupon">
+        update takeout_coupon
+        <set>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="type != null and type != ''">type = #{type},</if>
+            <if test="thresholdAmount != null">threshold_amount = #{thresholdAmount},</if>
+            <if test="discountAmount != null">discount_amount = #{discountAmount},</if>
+            <if test="discountRate != null">discount_rate = #{discountRate},</if>
+            <if test="maxDiscount != null">max_discount = #{maxDiscount},</if>
+            <if test="totalCount != null">total_count = #{totalCount},</if>
+            <if test="remainCount != null">remain_count = #{remainCount},</if>
+            <if test="perUserLimit != null">per_user_limit = #{perUserLimit},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="merchantId != null">merchant_id = #{merchantId},</if>
+            <if test="color != null and color != ''">color = #{color},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where coupon_id = #{couponId} and del_flag = '0'
+    </update>
+
+    <delete id="deleteCouponByIds" parameterType="Long">
+        update takeout_coupon set del_flag = '2' where coupon_id in
+        <foreach collection="array" item="couponId" open="(" separator="," close=")">
+            #{couponId}
+        </foreach>
+    </delete>
+
+    <update id="decrementRemainCount">
+        update takeout_coupon set remain_count = remain_count - 1
+        where coupon_id = #{couponId} and remain_count > 0
+    </update>
+
+    <select id="selectUserCouponList" parameterType="TakeoutCouponUser" resultMap="TakeoutCouponUserResult">
+        <include refid="selectUserCouponVo"/>
+        <where>
+            cu.del_flag = '0'
+            <if test="userId != null">AND cu.user_id = #{userId}</if>
+            <if test="couponId != null">AND cu.coupon_id = #{couponId}</if>
+            <if test="status != null and status != ''">AND cu.status = #{status}</if>
+        </where>
+        order by cu.id desc
+    </select>
+
+    <select id="selectUserCoupon" resultMap="TakeoutCouponUserResult">
+        <include refid="selectUserCouponVo"/>
+        where cu.del_flag = '0' and cu.user_id = #{userId} and cu.coupon_id = #{couponId}
+        limit 1
+    </select>
+
+    <insert id="insertUserCoupon" parameterType="TakeoutCouponUser" useGeneratedKeys="true" keyProperty="id">
+        insert into takeout_coupon_user(
+            user_id, coupon_id, status, receive_time, expire_time,
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        ) values(
+            #{userId}, #{couponId}, '0', sysdate(), #{expireTime},
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateUserCouponStatus" parameterType="TakeoutCouponUser">
+        update takeout_coupon_user
+        <set>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="usedTime != null">used_time = #{usedTime},</if>
+            <if test="usedOrderId != null">used_order_id = #{usedOrderId},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <select id="countUserCoupons" resultType="int">
+        select count(*) from takeout_coupon_user
+        where del_flag = '0' and user_id = #{userId} and coupon_id = #{couponId}
+    </select>
+</mapper>

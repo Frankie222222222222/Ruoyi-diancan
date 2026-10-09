@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.takeout.mapper.TakeoutRiderMapper">
+
+    <resultMap type="TakeoutRider" id="TakeoutRiderResult">
+        <id     property="riderId"          column="rider_id"          />
+        <result property="name"              column="name"              />
+        <result property="phone"             column="phone"             />
+        <result property="avatar"            column="avatar"            />
+        <result property="status"            column="status"            />
+        <result property="city"              column="city"              />
+        <result property="rating"            column="rating"            />
+        <result property="totalDeliveries"   column="total_deliveries"  />
+        <result property="totalIncome"       column="total_income"      />
+        <result property="bankCard"          column="bank_card"         />
+        <result property="bankName"          column="bank_name"         />
+        <result property="emergencyContact"  column="emergency_contact" />
+        <result property="emergencyPhone"    column="emergency_phone"    />
+        <result property="joinTime"          column="join_time"         />
+        <result property="delFlag"           column="del_flag"          />
+        <result property="createBy"          column="create_by"         />
+        <result property="createTime"        column="create_time"       />
+        <result property="updateBy"          column="update_by"         />
+        <result property="updateTime"        column="update_time"       />
+        <result property="remark"            column="remark"            />
+    </resultMap>
+
+    <sql id="selectRiderVo">
+        select rider_id, name, phone, avatar, status, city, rating,
+               total_deliveries, total_income, bank_card, bank_name,
+               emergency_contact, emergency_phone, join_time,
+               del_flag, create_by, create_time, update_by, update_time, remark
+        from takeout_rider
+    </sql>
+
+    <select id="selectRiderList" parameterType="TakeoutRider" resultMap="TakeoutRiderResult">
+        <include refid="selectRiderVo"/>
+        <where>
+            del_flag = '0'
+            <if test="riderId != null">AND rider_id = #{riderId}</if>
+            <if test="name != null and name != ''">
+                AND name like concat('%', #{name}, '%')
+            </if>
+            <if test="phone != null and phone != ''">
+                AND phone like concat('%', #{phone}, '%')
+            </if>
+            <if test="status != null and status != ''">AND status = #{status}</if>
+            <if test="city != null and city != ''">AND city = #{city}</if>
+        </where>
+        order by rider_id desc
+    </select>
+
+    <select id="selectRiderById" parameterType="Long" resultMap="TakeoutRiderResult">
+        <include refid="selectRiderVo"/>
+        where del_flag = '0' and rider_id = #{riderId}
+    </select>
+
+    <select id="selectRiderByPhone" parameterType="String" resultMap="TakeoutRiderResult">
+        <include refid="selectRiderVo"/>
+        where del_flag = '0' and phone = #{phone} limit 1
+    </select>
+
+    <insert id="insertRider" parameterType="TakeoutRider" useGeneratedKeys="true" keyProperty="riderId">
+        insert into takeout_rider(
+            <if test="riderId != null">rider_id,</if>
+            <if test="name != null and name != ''">name,</if>
+            <if test="phone != null and phone != ''">phone,</if>
+            <if test="avatar != null">avatar,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="city != null">city,</if>
+            <if test="joinTime != null">join_time,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        ) values(
+            <if test="riderId != null">#{riderId},</if>
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="phone != null and phone != ''">#{phone},</if>
+            <if test="avatar != null">#{avatar},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="city != null">#{city},</if>
+            <if test="joinTime != null">#{joinTime},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateRider" parameterType="TakeoutRider">
+        update takeout_rider
+        <set>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="phone != null and phone != ''">phone = #{phone},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="city != null">city = #{city},</if>
+            <if test="bankCard != null">bank_card = #{bankCard},</if>
+            <if test="bankName != null">bank_name = #{bankName},</if>
+            <if test="emergencyContact != null">emergency_contact = #{emergencyContact},</if>
+            <if test="emergencyPhone != null">emergency_phone = #{emergencyPhone},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where rider_id = #{riderId} and del_flag = '0'
+    </update>
+
+    <delete id="deleteRiderByIds" parameterType="Long">
+        update takeout_rider set del_flag = '2' where rider_id in
+        <foreach collection="array" item="riderId" open="(" separator="," close=")">
+            #{riderId}
+        </foreach>
+    </delete>
+
+    <update id="updateRiderStatus" parameterType="TakeoutRider">
+        update takeout_rider
+        <set>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where rider_id = #{riderId} and del_flag = '0'
+    </update>
+
+    <update id="incrementDeliveries">
+        update takeout_rider set total_deliveries = total_deliveries + 1 where rider_id = #{riderId}
+    </update>
+
+    <select id="selectAvailableRiders" parameterType="String" resultMap="TakeoutRiderResult">
+        <include refid="selectRiderVo"/>
+        where del_flag = '0' and status = '0'
+        <if test="city != null and city != ''">AND city = #{city}</if>
+        order by rating desc, total_deliveries desc
+    </select>
+</mapper>

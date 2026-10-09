@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.takeout.mapper.TakeoutRatingMapper">
+
+    <resultMap type="TakeoutRating" id="TakeoutRatingResult">
+        <id     property="ratingId"        column="rating_id"        />
+        <result property="orderId"         column="order_id"         />
+        <result property="userId"           column="user_id"          />
+        <result property="merchantId"       column="merchant_id"       />
+        <result property="riderId"          column="rider_id"          />
+        <result property="merchantScore"    column="merchant_score"    />
+        <result property="riderScore"       column="rider_score"       />
+        <result property="tasteScore"       column="taste_score"       />
+        <result property="packagingScore"   column="packaging_score"   />
+        <result property="deliveryScore"    column="delivery_score"    />
+        <result property="content"          column="content"          />
+        <result property="images"            column="images"            />
+        <result property="tasteTags"         column="taste_tags"        />
+        <result property="isAnonymous"       column="is_anonymous"      />
+        <result property="reply"             column="reply"             />
+        <result property="replyTime"         column="reply_time"        />
+        <result property="replyBy"           column="reply_by"          />
+        <result property="status"            column="status"            />
+        <result property="delFlag"           column="del_flag"          />
+        <result property="createBy"          column="create_by"         />
+        <result property="createTime"        column="create_time"       />
+        <result property="updateBy"          column="update_by"         />
+        <result property="updateTime"        column="update_time"       />
+        <result property="userNickname"      column="user_nickname"     />
+        <result property="merchantName"      column="merchant_name"     />
+        <result property="riderName"         column="rider_name"        />
+    </resultMap>
+
+    <sql id="selectRatingVo">
+        select r.rating_id, r.order_id, r.user_id, r.merchant_id, r.rider_id,
+               r.merchant_score, r.rider_score, r.taste_score, r.packaging_score, r.delivery_score,
+               r.content, r.images, r.taste_tags, r.is_anonymous,
+               r.reply, r.reply_time, r.reply_by, r.status,
+               r.del_flag, r.create_by, r.create_time, r.update_by, r.update_time,
+               u.nickname as user_nickname,
+               m.merchant_name as merchant_name,
+               rd.name as rider_name
+        from takeout_rating r
+        left join takeout_user u on r.user_id = u.user_id and u.del_flag = '0'
+        left join takeout_merchant m on r.merchant_id = m.merchant_id and m.del_flag = '0'
+        left join takeout_rider rd on r.rider_id = rd.rider_id and rd.del_flag = '0'
+    </sql>
+
+    <select id="selectRatingList" parameterType="TakeoutRating" resultMap="TakeoutRatingResult">
+        <include refid="selectRatingVo"/>
+        <where>
+            r.del_flag = '0'
+            <if test="ratingId != null">AND r.rating_id = #{ratingId}</if>
+            <if test="orderId != null">AND r.order_id = #{orderId}</if>
+            <if test="userId != null">AND r.user_id = #{userId}</if>
+            <if test="merchantId != null">AND r.merchant_id = #{merchantId}</if>
+            <if test="riderId != null">AND r.rider_id = #{riderId}</if>
+            <if test="status != null and status != ''">AND r.status = #{status}</if>
+        </where>
+        order by r.rating_id desc
+    </select>
+
+    <select id="selectRatingById" parameterType="Long" resultMap="TakeoutRatingResult">
+        <include refid="selectRatingVo"/>
+        where r.del_flag = '0' and r.rating_id = #{ratingId}
+    </select>
+
+    <select id="selectRatingByOrderId" parameterType="Long" resultMap="TakeoutRatingResult">
+        <include refid="selectRatingVo"/>
+        where r.del_flag = '0' and r.order_id = #{orderId} limit 1
+    </select>
+
+    <insert id="insertRating" parameterType="TakeoutRating" useGeneratedKeys="true" keyProperty="ratingId">
+        insert into takeout_rating(
+            <if test="ratingId != null">rating_id,</if>
+            <if test="orderId != null">order_id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="merchantId != null">merchant_id,</if>
+            <if test="riderId != null">rider_id,</if>
+            <if test="merchantScore != null">merchant_score,</if>
+            <if test="riderScore != null">rider_score,</if>
+            <if test="tasteScore != null">taste_score,</if>
+            <if test="packagingScore != null">packaging_score,</if>
+            <if test="deliveryScore != null">delivery_score,</if>
+            <if test="content != null">content,</if>
+            <if test="images != null">images,</if>
+            <if test="tasteTags != null">taste_tags,</if>
+            <if test="isAnonymous != null and isAnonymous != ''">is_anonymous,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        ) values(
+            <if test="ratingId != null">#{ratingId},</if>
+            <if test="orderId != null">#{orderId},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="merchantId != null">#{merchantId},</if>
+            <if test="riderId != null">#{riderId},</if>
+            <if test="merchantScore != null">#{merchantScore},</if>
+            <if test="riderScore != null">#{riderScore},</if>
+            <if test="tasteScore != null">#{tasteScore},</if>
+            <if test="packagingScore != null">#{packagingScore},</if>
+            <if test="deliveryScore != null">#{deliveryScore},</if>
+            <if test="content != null">#{content},</if>
+            <if test="images != null">#{images},</if>
+            <if test="tasteTags != null">#{tasteTags},</if>
+            <if test="isAnonymous != null and isAnonymous != ''">#{isAnonymous},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateRating" parameterType="TakeoutRating">
+        update takeout_rating
+        <set>
+            <if test="content != null">content = #{content},</if>
+            <if test="images != null">images = #{images},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where rating_id = #{ratingId} and del_flag = '0'
+    </update>
+
+    <delete id="deleteRatingByIds" parameterType="Long">
+        update takeout_rating set del_flag = '2' where rating_id in
+        <foreach collection="array" item="ratingId" open="(" separator="," close=")">
+            #{ratingId}
+        </foreach>
+    </delete>
+
+    <update id="replyRating" parameterType="TakeoutRating">
+        update takeout_rating
+        <set>
+            reply = #{reply},
+            reply_time = sysdate(),
+            <if test="replyBy != null and replyBy != ''">reply_by = #{replyBy},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where rating_id = #{ratingId} and del_flag = '0'
+    </update>
+
+    <select id="selectAvgMerchantScoreByMerchantId" parameterType="Long" resultType="java.lang.Double">
+        select avg(merchant_score) from takeout_rating
+        where del_flag = '0' and merchant_id = #{merchantId} and merchant_score is not null
+    </select>
+
+    <select id="selectAvgRiderScoreByRiderId" parameterType="Long" resultType="java.lang.Double">
+        select avg(rider_score) from takeout_rating
+        where del_flag = '0' and rider_id = #{riderId} and rider_score is not null
+    </select>
+</mapper>

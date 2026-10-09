@@ -1,0 +1,70 @@
+---
+description: Auto-commit and push to GitHub dev branch after every completed task in e:\ruoyi-vue3
+globs: e:\ruoyi-vue3\**\*
+alwaysApply: true
+---
+
+# Ruoyi-diancan Auto Sync Rule
+
+After completing **any** user-facing task in workspace `e:\ruoyi-vue3` (bugfix, feature, config, SQL, docs, etc.), the agent MUST automatically:
+
+1. Stage all changes: `git add -A` from `e:\ruoyi-vue3`
+2. Commit with a message summarizing the task, in the form:
+   `type(scope): summary` — e.g. `fix(dispatch): replace proxy.$modal with direct modal import to fix unresponsive buttons`
+3. Push to the **`dev` branch** of the remote:
+   `git push -u origin dev` (first push) or `git push origin dev` (subsequent)
+4. Report the commit hash + pushed branch in the final reply so the user can review/merge to main manually.
+
+## Remote
+
+- Repo: https://github.com/Frankie222222222222/Ruoyi-diancan.git
+- User will merge `dev` → `main` manually. **Never push directly to main.**
+
+## When NOT to push
+
+- The change is purely exploratory (e.g. running `ls`, reading files, no file written)
+- The task explicitly says "don't commit" or "只测试一下"
+- The build/tests failed — fix them first
+
+## When push FAILS
+
+- If authentication error: STOP and tell the user to set up a Personal Access Token (PAT) or SSH key. Do NOT retry blindly.
+- If non-fast-forward: `git pull --rebase origin dev` then push again.
+- If conflict: stop and report; never force-push to dev.
+
+## Commit message convention
+
+```
+<type>(<scope>): <subject>
+
+<body — what & why, not how>
+```
+
+Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `sql`
+Scope: module name (e.g. `dispatch`, `order`, `rider`, `merchant`, `takeout-module`, `frontend`)
+
+## Initialization (one-time, only on first sync)
+
+If `e:\ruoyi-vue3` is not yet a git repo:
+
+```powershell
+cd e:\ruoyi-vue3
+git init
+git checkout -b dev
+git remote add origin https://github.com/Frankie222222222222/Ruoyi-diancan.git
+# Then ask user for credential setup before first push
+```
+
+## Token / SSH setup (only if not already configured)
+
+Guide the user with ONE clear step at a time:
+1. Check if credential helper exists: `git config --global credential.helper`
+2. If none, recommend PAT: https://github.com/settings/tokens (classic, `repo` scope), then `git remote set-url origin https://<TOKEN>@github.com/Frankie222222222222/Ruoyi-diancan.git`
+3. Or SSH: `ssh-keygen -t ed25519` + add public key at https://github.com/settings/keys
+
+## Post-task checklist
+
+Before reporting task done, the agent must verify:
+- [ ] `git status` shows a clean tree after commit
+- [ ] `git log origin/dev -1` shows the new commit
+- [ ] Final reply contains: commit hash, branch (`dev`), one-line summary

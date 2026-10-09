@@ -1,0 +1,74 @@
+# ==================================================
+# Ruoyi-diancan 根目录 .gitignore
+# ==================================================
+
+# ===== 后端 Java 产物 (Maven / Gradle) =====
+target/
+build/
+*.class
+*.jar
+*.war
+.gradle/
+.mvn/
+mvnw
+mvnw.cmd
+*.iml
+
+# ===== 前端 Node 产物 =====
+node_modules/
+dist/
+.vite/
+.cache/
+*.local
+
+# ===== IDE / 编辑器 =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===== 日志 / 临时文件 =====
+*.log
+logs/
+*.tmp
+*.bak
+
+# ===== 系统 / 环境文件 =====
+.env
+.env.local
+.env.*.local
+
+# ===== 敏感信息 (数据库密码、token 等) =**
+**/application-*.yml
+!**/application.yml
+!**/application-druid.yml
+**/secrets.properties
+**/*.pem
+**/*.key
+**/keystore/
+
+# ===== 数据库文件 =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== 编译缓存 =====
+**/__pycache__/
+**/.pytest_cache/
+
+# ===== 临时调试草稿（GBK 编码转换、SQL 抓取等） =====
+*RuoYi-Vue3-dish*.txt
+*RuoYi-Vue3-category*.txt
+*category-raw.txt
+*category-read.txt
+*convert-gbk-utf8.ps1
+*convert-to-utf8-bom.ps1
+*dish-*.txt
+*final-dish.txt
+*final-merchant.txt
+*gbk2utf8.ps1
+*fix-menu-name.sql
+*docker-compose.yml

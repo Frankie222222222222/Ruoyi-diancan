@@ -4,8 +4,9 @@
 -- 描述:
 --   1) 新增桌台表 takeout_dine_table
 --   2) takeout_order 加列 order_type / table_id
---   3) 字典 takeout_order_status 加 DRAFT(0a) 堂食专用
---   4) 字典 takeout_table_status 桌台状态
+--   3) takeout_order 状态字段扩成 CHAR(2) 以容纳 DRAFT(0a) 等多字符状态
+--   4) 字典 takeout_order_status 加 DRAFT(0a) 堂食专用
+--   5) 字典 takeout_table_status 桌台状态
 -- =============================================================
 SET NAMES utf8mb4;
 
@@ -41,6 +42,12 @@ ALTER TABLE takeout_order
     ADD COLUMN table_id BIGINT(20) DEFAULT NULL COMMENT '堂食桌台ID(NULL=外卖)' AFTER order_type,
     ADD INDEX idx_order_type (order_type),
     ADD INDEX idx_table (table_id);
+
+-- 2.2 状态字段扩成 CHAR(2),以容纳 DRAFT(0a) 等多字符状态值
+--     已有值都是单字符,扩展安全(CHAR(1) -> CHAR(2) 不丢数据)
+ALTER TABLE takeout_order
+    MODIFY COLUMN status     CHAR(2) NOT NULL DEFAULT '0' COMMENT '订单状态',
+    MODIFY COLUMN pay_status CHAR(2) NOT NULL DEFAULT '0' COMMENT '支付状态';
 
 -- ============================================================
 -- 3. 字典: 堂食订单状态
@@ -121,6 +128,7 @@ WHERE parent_id = @dine_table_menu_id AND menu_type = 'F';
 -- ============================================================
 -- DROP TABLE IF EXISTS takeout_dine_table;
 -- ALTER TABLE takeout_order DROP COLUMN order_type, DROP COLUMN table_id;
+-- ALTER TABLE takeout_order MODIFY COLUMN status CHAR(1) NOT NULL DEFAULT '0', MODIFY COLUMN pay_status CHAR(1) NOT NULL DEFAULT '0';
 -- DELETE FROM sys_dict_data WHERE dict_type = 'takeout_order_status' AND dict_value = '0a';
 -- DELETE FROM sys_dict_data WHERE dict_type = 'takeout_table_status';
 -- DELETE FROM sys_dict_type WHERE dict_type = 'takeout_table_status';

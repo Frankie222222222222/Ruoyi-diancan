@@ -173,6 +173,14 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
                         String.format("[ERR_%d] 菜品不存在，dishId=%s", ERR_DISH_NOT_FOUND, item.getDishId()),
                         ERR_DISH_NOT_FOUND);
                 }
+                // 2026-10-11 v4 修复: 把菜品信息(名称/单价/小计)补到 item,避免数据库 NOT NULL 失败
+                if (item.getDishName() == null) item.setDishName(d.getDishName());
+                if (item.getDishImage() == null) item.setDishImage(d.getImage());
+                if (item.getPrice() == null) item.setPrice(d.getPrice());
+                if (item.getSubtotal() == null && item.getPrice() != null && item.getQuantity() != null)
+                {
+                    item.setSubtotal(item.getPrice().multiply(new java.math.BigDecimal(item.getQuantity())));
+                }
                 // G6: 跨商家一致性 —— 订单的所有明细菜品必须属于同一个商家
                 if (order.getMerchantId() != null && d.getMerchantId() != null
                         && !order.getMerchantId().equals(d.getMerchantId()))
@@ -193,6 +201,11 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
             for (TakeoutOrderItem item : order.getOrderItems())
             {
                 item.setOrderId(order.getOrderId());
+                // P2-B 修复: subtotal 是 NOT NULL,服务端兜底计算 (price * qty)
+                if (item.getPrice() != null && item.getQuantity() != null && item.getSubtotal() == null)
+                {
+                    item.setSubtotal(item.getPrice().multiply(new java.math.BigDecimal(item.getQuantity())));
+                }
             }
             orderMapper.insertOrderItems(order.getOrderItems());
             // 真正扣减（带 GREATEST 兜底）

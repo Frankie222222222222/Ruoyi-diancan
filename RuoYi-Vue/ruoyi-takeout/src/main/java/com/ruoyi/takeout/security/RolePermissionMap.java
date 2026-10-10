@@ -30,7 +30,8 @@ public final class RolePermissionMap
 
     private static final Set<String> P_USER = unmod(
         "takeout:order:list", "takeout:order:query", "takeout:order:add",
-        "takeout:order:cancel", "takeout:order:export",
+        "takeout:order:edit", "takeout:order:cancel", "takeout:order:export",
+        "takeout:order:changeStatus",
         "takeout:rating:list", "takeout:rating:query",
         "takeout:complaint:list", "takeout:complaint:query",
         "takeout:coupon:list", "takeout:coupon:query",
@@ -49,7 +50,8 @@ public final class RolePermissionMap
 
     private static final Set<String> P_RIDER = unmod(
         "takeout:rider:list", "takeout:rider:available",
-        "takeout:rider:availableOrders", "takeout:rider:grab",
+        "takeout:rider:availableOrders", "takeout:rider:grabList",
+        "takeout:rider:grab",
         "takeout:dispatch:list", "takeout:dispatch:query",
         "takeout:dispatch:accept", "takeout:dispatch:pickup",
         "takeout:dispatch:complete", "takeout:dispatch:cancel",

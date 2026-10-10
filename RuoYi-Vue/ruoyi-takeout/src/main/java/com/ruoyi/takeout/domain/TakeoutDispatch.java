@@ -101,6 +101,12 @@ public class TakeoutDispatch extends BaseEntity
     /** 扩展：骑手电话(查询用) */
     private String riderPhone;
 
+    /** 扩展：商家ID(查询用) */
+    private Long merchantId;
+
+    /** 扩展：商家名称(查询用) */
+    private String merchantName;
+
     public Long getDispatchId()
     {
         return dispatchId;
@@ -316,6 +322,26 @@ public class TakeoutDispatch extends BaseEntity
     public void setRiderPhone(String riderPhone)
     {
         this.riderPhone = riderPhone;
+    }
+
+    public Long getMerchantId()
+    {
+        return merchantId;
+    }
+
+    public void setMerchantId(Long merchantId)
+    {
+        this.merchantId = merchantId;
+    }
+
+    public String getMerchantName()
+    {
+        return merchantName;
+    }
+
+    public void setMerchantName(String merchantName)
+    {
+        this.merchantName = merchantName;
     }
 
     @Override

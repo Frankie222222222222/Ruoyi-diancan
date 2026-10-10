@@ -32,7 +32,9 @@
           input-size="small"
         />
       </el-tooltip>
-      <el-tag v-if="mockMode && merchantLngLat" type="danger" size="small" style="margin-left: 4px">商家已设定</el-tag>
+      <el-tag v-if="mockMode && merchantLngLat" type="danger" size="small" style="margin-left: 4px">
+        商家: {{ currentMerchantName }}
+      </el-tag>
       <el-button
         v-if="mockMode"
         size="small"
@@ -106,6 +108,33 @@ const STATUS_LABEL = {
   '2': '配送中'
 }
 
+// 模拟模式商家名表(随机取一个,让商家 marker 不再叫"商家已设定")
+const MOCK_MERCHANT_NAMES = ['隆基烧烤', '川味小厨', '麦乐炸鸡', '老王饺子馆', '蜀香火锅', '粤式点心']
+// 模拟模式当前选中的商家名(在 regenerateMockRiders 里设置)
+let currentMerchantName = '隆基烧烤'
+
+// 骑手 inline SVG:状态色为主色,做"外卖员卡通头像 + 电动车车头"造型
+// 圆头 = 头盔,圆下方梯形 = 身体/车把,白色竖条 = 反光条
+const RIDER_SVG = (color) => `<svg viewBox="0 0 32 32" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="16" cy="16" r="14" fill="${color}" opacity="0.18"/>
+  <path d="M6 24 Q6 19 11 19 L21 19 Q26 19 26 24 Z" fill="${color}"/>
+  <circle cx="11" cy="22" r="2" fill="${color}" stroke="#fff" stroke-width="1"/>
+  <circle cx="21" cy="22" r="2" fill="${color}" stroke="#fff" stroke-width="1"/>
+  <circle cx="16" cy="10" r="6" fill="${color}"/>
+  <rect x="12" y="3" width="8" height="3.5" rx="1.5" fill="${color}"/>
+  <rect x="14.5" y="0.5" width="3" height="3.5" rx="1" fill="${color}"/>
+  <rect x="13" y="9" width="6" height="2.2" rx="0.6" fill="#fff" opacity="0.85"/>
+  <line x1="16" y1="12" x2="16" y2="16" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+</svg>`
+
+// 商家 inline SVG:购物袋/门店
+const SHOP_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M5 7 L4 20 a1 1 0 0 0 1 1 h14 a1 1 0 0 0 1 -1 L19 7"/>
+  <path d="M8 7 V5 a4 4 0 0 1 8 0 V7"/>
+  <path d="M9 11 v4"/>
+  <path d="M15 11 v4"/>
+</svg>`
+
 async function reload() {
   loading.value = true
   try {
@@ -163,6 +192,8 @@ function regenerateMockRiders() {
   if (!merchantLngLat.value) return
   const [cLng, cLat] = merchantLngLat.value
   const surnames = ['张', '李', '王', '赵', '钱', '孙', '周', '吴', '郑', '冯', '陈', '杨']
+  // 选一个商家名(基于商家坐标 hash,固定不变;否则用 random)
+  currentMerchantName = MOCK_MERCHANT_NAMES[Math.floor(Math.abs(cLng * 1000 + cLat * 1000)) % MOCK_MERCHANT_NAMES.length]
   const rows = []
   for (let i = 0; i < mockRiderCount.value; i++) {
     const angle = Math.random() * 2 * Math.PI
@@ -173,6 +204,8 @@ function regenerateMockRiders() {
       dispatchId: 900000 + i,
       orderId: 800000 + i,
       orderNo: 'MOCK' + (800000 + i),
+      merchantId: 600 + (i % 3),
+      merchantName: currentMerchantName,
       riderId: 700 + i,
       riderName: surnames[i % surnames.length] + '骑手' + (i + 1),
       riderPhone: '1390000' + String(7000 + i).padStart(4, '0'),
@@ -196,8 +229,11 @@ function drawMockMarkers() {
   if (merchantLngLat.value) {
     merchantMarker = new window.AMap.Marker({
       position: merchantLngLat.value,
-      content: '<div class="merchant-marker">🏪</div>',
-      offset: new window.AMap.Pixel(-24, -48),
+      content: `<div class="merchant-marker">
+        <div class="m-icon">${SHOP_SVG}</div>
+        <div class="m-name">${currentMerchantName}</div>
+      </div>`,
+      offset: new window.AMap.Pixel(-22, -48),
       zIndex: 200
     })
     mapInstance.add(merchantMarker)
@@ -210,14 +246,19 @@ function drawMockMarkers() {
     const heading = computeHeading(r.riderId, r.lng, r.lat)
     const marker = new window.AMap.Marker({
       position: [r.lng, r.lat],
-      content: `<div class="rider-marker" style="--marker-color:${color};--heading:${heading}deg"><span class="name">${r.riderName}</span></div>`,
-      offset: new window.AMap.Pixel(-20, -27),
+      content: `<div class="rider-marker" style="--marker-color:${color};--heading:${heading}deg">
+        <div class="icon">${RIDER_SVG(color)}</div>
+        <div class="arrow"></div>
+        <div class="name">${r.riderName}</div>
+      </div>`,
+      offset: new window.AMap.Pixel(-22, -34),
       extData: r
     })
     marker.on('click', () => {
       const content = `<div style="padding:8px;min-width:200px">
         <div style="font-weight:600;margin-bottom:6px">${r.riderName} (模拟)</div>
         <div>状态: <b style="color:${color}">${STATUS_LABEL[r.status] || r.status}</b></div>
+        <div>商家: <b>${r.merchantName || currentMerchantName}</b></div>
         <div>订单: ${r.orderNo}</div>
         <div>经度: ${r.lng.toFixed(6)}</div>
         <div>纬度: ${r.lat.toFixed(6)}</div>
@@ -261,8 +302,8 @@ function startMockMove() {
       m.setPosition([r.lng, r.lat])
       const heading = computeHeading(r.riderId, r.lng, r.lat)
       const dom = m.getDomElement && m.getDomElement()
-      const inner = dom && dom.querySelector('.rider-marker')
-      if (inner) inner.style.setProperty('--heading', heading + 'deg')
+      const arrow = dom && dom.querySelector('.rider-marker .arrow')
+      if (arrow) arrow.style.setProperty('--heading', heading + 'deg')
     })
   }, 1000)
 }
@@ -329,17 +370,23 @@ function drawMarkers(rows) {
     const heading = computeHeading(row.riderId, lng, lat)
     const marker = new window.AMap.Marker({
       position: [lng, lat],
-      content: `<div class="rider-marker" style="--marker-color:${color};--heading:${heading}deg"><span class="name">${row.riderName || row.riderId}</span></div>`,
-      offset: new window.AMap.Pixel(-20, -27),
+      content: `<div class="rider-marker" style="--marker-color:${color};--heading:${heading}deg">
+        <div class="icon">${RIDER_SVG(color)}</div>
+        <div class="arrow"></div>
+        <div class="name">${row.riderName || row.riderId}</div>
+      </div>`,
+      offset: new window.AMap.Pixel(-22, -34),
       extData: row
     })
     marker.on('click', () => {
       const r = row
       const updateTime = r.locationUpdateTime || '-'
+      const merchantLine = r.merchantName ? `<div>商家: <b>${r.merchantName}</b></div>` : ''
       const content = `
         <div style="padding:8px;min-width:200px">
           <div style="font-weight:600;margin-bottom:6px">${r.riderName || '骑手#' + r.riderId}</div>
           <div>状态: <b style="color:${color}">${STATUS_LABEL[r.status] || r.status}</b></div>
+          ${merchantLine}
           <div>当前订单: ${r.orderNo || '#' + r.orderId}</div>
           <div>经度: ${r.riderLng}</div>
           <div>纬度: ${r.riderLat}</div>
@@ -532,58 +579,69 @@ onBeforeUnmount(() => {
   margin: 4px 0 0 16px;
   padding: 0;
 }
-/* 骑手头像：40px 圆 + 状态色描边 + 阴影 */
+/* ============== 骑手 marker:icon + arrow + name 三段式 ============== */
 :deep(.rider-marker) {
   position: relative;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  border: 3px solid var(--marker-color, #909399);
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  box-sizing: border-box;
   cursor: pointer;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
   transition: transform 0.15s ease;
 }
 :deep(.rider-marker:hover) {
   transform: scale(1.08);
 }
-/* 名字字标 */
-:deep(.rider-marker .name) {
+/* 圆头像包裹层:36px 白底圆 + 状态色描边 */
+:deep(.rider-marker .icon) {
   position: relative;
-  z-index: 1;
-  color: #303133;
-  letter-spacing: -0.5px;
-  white-space: nowrap;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--marker-color, #909399);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 36px;
 }
-/* 底部方向箭头：朝下的小三角，绝对定位 */
-:deep(.rider-marker::after) {
-  content: '';
-  position: absolute;
-  bottom: -7px;
-  left: 50%;
-  transform: translateX(-50%) rotate(var(--heading, 0deg));
+:deep(.rider-marker .icon svg) {
+  display: block;
+}
+/* 底部方向三角:和圆头"连体",跟随 --heading 旋转 */
+:deep(.rider-marker .arrow) {
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 9px solid var(--marker-color, #909399);
+  margin-top: -2px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid var(--marker-color, #909399);
+  transform: rotate(var(--heading, 0deg));
   transform-origin: 50% 30%;
 }
-/* 点击时的脉冲外圈 */
-:deep(.rider-marker.pulse::before) {
+/* 名字胶囊:贴在最下方,白底深色字 */
+:deep(.rider-marker .name) {
+  margin-top: 3px;
+  padding: 1px 7px;
+  background: #fff;
+  border: 1px solid var(--marker-color, #909399);
+  color: #303133;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  border-radius: 10px;
+  white-space: nowrap;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+/* 点击时的脉冲外圈(套在 .icon 上) */
+:deep(.rider-marker.pulse .icon::before) {
   content: '';
   position: absolute;
-  inset: -6px;
+  inset: -5px;
   border-radius: 50%;
   border: 2px solid var(--marker-color, #909399);
   animation: riderPulse 1.2s ease-out infinite;
@@ -594,36 +652,48 @@ onBeforeUnmount(() => {
   100% { transform: scale(1.6); opacity: 0; }
 }
 
-/* 商家：店铺形小图标 */
+/* ============== 商家 marker:红圆 + 名字胶囊 ============== */
 :deep(.merchant-marker) {
-  width: 48px;
-  height: 48px;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+:deep(.merchant-marker .m-icon) {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f56c6c;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f56c6c;
-  border-radius: 8px 8px 8px 2px;
-  border: 3px solid #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  color: #fff;
-  font-size: 22px;
   box-sizing: border-box;
-  cursor: pointer;
   transition: transform 0.15s ease;
 }
-:deep(.merchant-marker:hover) {
-  transform: scale(1.08);
+:deep(.merchant-marker:hover .m-icon) {
+  transform: scale(1.1);
 }
-:deep(.merchant-marker::after) {
-  content: '';
-  position: absolute;
-  bottom: -7px;
-  left: 6px;
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 7px solid #f56c6c;
+:deep(.merchant-marker .m-icon svg) {
+  display: block;
+}
+:deep(.merchant-marker .m-name) {
+  margin-top: 4px;
+  padding: 1px 7px;
+  background: #fff;
+  border: 1px solid #f56c6c;
+  color: #f56c6c;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  border-radius: 10px;
+  white-space: nowrap;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 </style>

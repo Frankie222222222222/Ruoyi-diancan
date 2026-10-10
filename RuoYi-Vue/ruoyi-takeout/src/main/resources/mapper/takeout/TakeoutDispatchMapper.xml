@@ -31,6 +31,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="orderNo"            column="order_no"            />
         <result property="riderName"          column="rider_name"          />
         <result property="riderPhone"         column="rider_phone"         />
+        <result property="merchantId"         column="merchant_id"         />
+        <result property="merchantName"       column="merchant_name"       />
     </resultMap>
 
     <sql id="selectDispatchVo">
@@ -40,7 +42,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                d.delivery_distance, d.actual_distance,
                d.rider_lng, d.rider_lat, d.location_update_time,
                d.del_flag, d.create_by, d.create_time, d.update_by, d.update_time, d.remark,
-               o.order_no,
+               o.order_no, o.merchant_id, o.merchant_name,
                r.name as rider_name, r.phone as rider_phone
         from takeout_dispatch d
         left join takeout_order o on d.order_id = o.order_id

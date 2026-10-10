@@ -200,6 +200,21 @@
                 <version>8.5.10</version>
             </dependency>
 
+            <!--
+              显式锁定 okhttp 4.12.0。
+              背景：minio 8.5.10 字节码调用 `RequestBody.create(byte[], MediaType)` 旧签名
+              (早期 okhttp 3.0.x 风格,byte[] 在前),从 okhttp 3.5.0 起签名被重排成 `(MediaType, byte[])`,
+              3.12.13 不再提供旧签名;alipay-sdk-java 4.40.0 硬编码要 okhttp 3.12.13,
+              maven 调解时 alipay 路径更近,3.12.13 胜出 → minio 启动报 NoSuchMethodError。
+              ruoyi-takeout 已 exclude alipay 的 okhttp 依赖,这里再锁定 okhttp 4.12.0 全局版本,
+              保证 admin 跑起来时 classpath 里只有一个 okhttp 版本,且满足 minio + alipay 双方调用。
+            -->
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>4.12.0</version>
+            </dependency>
+
             <!-- Apache Commons Lang3（不在 Spring Boot BOM 内，需显式声明） -->
             <dependency>
                 <groupId>org.apache.commons</groupId>

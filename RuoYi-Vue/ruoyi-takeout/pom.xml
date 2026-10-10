@@ -84,6 +84,23 @@
             <groupId>com.alipay.sdk</groupId>
             <artifactId>alipay-sdk-java</artifactId>
             <version>4.40.0.ALL</version>
+            <!--
+              排除 alipay-sdk-java 硬编码的 okhttp 3.12.13。
+              minio 8.5.10 字节码调用 `okhttp3.RequestBody.create(byte[], MediaType)` 这个**参数顺序是 byte[] 在前**的旧签名
+              (早期 okhttp 3.0.x 风格),从 3.5.0 起参数顺序被重排成 `(MediaType, byte[])`,3.12.13 不再提供该签名。
+              minio 8.5.10 的 pom 写要 okhttp 4.12.0;okhttp 4.12.0 提供了 `create(byte[], MediaType)` ✅
+              但 alipay-sdk-java 4.40.0 在 takeout pom 直接声明,路径比 minio (经 ruoyi-common 间接)更近,
+              maven 调解选了 alipay 的 3.12.13,导致 minio 启动时 `NoSuchMethodError`。
+              排除 alipay 的 okhttp 依赖后,maven 调解会选 minio 的 4.12.0,两全其美:
+                - minio 8.5.10 调 `create(byte[], MediaType)` → 4.12.0 存在 ✅
+                - alipay-sdk-java 4.40.0 调 `create(MediaType, byte[])` → 4.12.0 存在 ✅
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>com.squareup.okhttp3</groupId>
+                    <artifactId>okhttp</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 

@@ -1,0 +1,55 @@
+---
+description: diancianapp-user 目录的扫码点餐微信小程序 - Vue 3 + uni-app + uniCloud 技术栈与开发约束
+alwaysApply: true
+---
+
+# diancianapp-user — 扫码点餐微信小程序
+
+`diancianapp-user/` 是基于 **Vue 3 + uni-app + uniCloud** 的微信小程序（同时也支持支付宝/百度/头条，manifest.json 里都开启了 mp 端）。
+
+## 技术栈（必须遵循）
+
+| 层 | 选型 |
+|---|---|
+| 框架 | **Vue 3**（`manifest.json` 里 `vueVersion: "3"`，统一使用 Composition API + `<script setup>`） |
+| 跨端 | **uni-app**（页面用 `.vue` 单文件组件 + 条件编译 `#ifdef MP-WEIXIN` 等） |
+| 后端 | **uniCloud**（云函数 / 云数据库 / 云存储，不走自建 Spring Boot 后端） |
+| UI 库 | **vk-uview-ui**（在 `uni_modules/vk-uview-ui/`，组件以 `u-` 开头，如 `u-button`、`u-popup`、`u-form`） |
+| 分页 | **z-paging**（用于下拉刷新/上拉加载） |
+| 时间 | **dayjs**（不用 moment / date-fns） |
+
+## 项目结构
+
+```
+diancianapp-user/
+├── pages/                # 业务页面（tabBar + 扫码点餐主流程）
+├── components/           # 自定义组件（业务复用）
+├── store/                # Vuex 或 Pinia（按既有约定）
+├── uni_modules/          # 第三方 uni-app 模块（不要直接改这里，改完会被升级覆盖）
+│   └── vk-uview-ui/      # 核心 UI 库
+├── static/               # 图片、字体、JSON
+├── App.vue / main.js / pages.json / manifest.json
+└── uniCloud-aliyun/      # 云函数 & 云数据库 schema
+```
+
+## 关键约束
+
+- **API 风格**：uni-app 的 `uni.*` API（`uni.request`、`uni.scanCode`、`uni.showToast` …），不要用 `axios` / `window.fetch`
+- **样式单位**：uni-app 推荐 `rpx`（750rpx = 屏幕宽），不要用 `px` / `rem` 做适配
+- **平台差异**：微信小程序特有的 API（扫码、定位、支付等）必须 `#ifdef MP-WEIXIN` 包起来，避免编译到其他端报错
+- **云函数**：业务数据走 `uniCloud.callFunction({ name: 'xxx' })`，不要 `uni.request` 调 RuoYi 后端
+- **扫码场景**：本项目核心是"扫码点餐"——遇到 `uni.scanCode` / 桌号 / 菜单相关逻辑要重点关注
+- **UI 组件优先**：能用 `u-button`、`u-popup`、`u-modal`、`u-form` 的就用 uView，别自己造
+
+## 不要做的事
+
+- ❌ 不要修改 `uni_modules/vk-uview-ui/` 下的源码（升级会丢）
+- ❌ 不要把 RuoYi 后端的接口直接拿来用（这是小程序端，数据走 uniCloud）
+- ❌ 不要用 Vue 2 风格的 Options API
+- ❌ 不要引第三方重量库（lodash、moment 等），小程序包体敏感
+- ❌ 不要把 `pages.json` 的 `tabBar` 误删
+
+## 调试 / 运行
+
+- HBuilderX 打开 `diancianapp-user/` 目录即可运行/发布
+- 真机扫码点餐调试：微信开发者工具 → 导入 `unpackage/dist/dev/mp-weixin`

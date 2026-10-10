@@ -12,6 +12,36 @@
         inline-prompt
         style="margin-left: 8px"
       />
+      <el-divider direction="vertical" style="height: 20px" />
+      <el-switch
+        v-model="mockMode"
+        active-text="模拟模式"
+        inactive-text="真实数据"
+        size="small"
+        inline-prompt
+        style="margin-left: 4px"
+      />
+      <el-tooltip content="骑手数量(仅模拟模式生效)" v-if="mockMode" placement="top">
+        <el-slider
+          v-model="mockRiderCount"
+          :min="1"
+          :max="20"
+          :step="1"
+          style="width: 160px; margin-left: 8px"
+          show-input
+          input-size="small"
+        />
+      </el-tooltip>
+      <el-tag v-if="mockMode && merchantLngLat" type="danger" size="small" style="margin-left: 4px">商家已设定</el-tag>
+      <el-button
+        v-if="mockMode"
+        size="small"
+        :type="awaitPickMerchant ? 'primary' : 'default'"
+        style="margin-left: 4px"
+        @click="togglePickMerchant"
+      >
+        {{ awaitPickMerchant ? '点击地图选商家…' : '重选商家位置' }}
+      </el-button>
     </div>
     <div ref="mapContainer" class="rider-map-container" v-show="!mapError"></div>
     <div v-if="mapError" class="rider-map-error">
@@ -34,6 +64,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
 import { listActiveDispatchLocations } from '@/api/takeout/riderLocation'
 
 defineOptions({ name: 'RiderMap' })
@@ -44,10 +75,22 @@ const loading = ref(false)
 const autoRefresh = ref(true)
 const mapError = ref('')  // 地图加载失败原因(空 = 正常)
 
+// --- 模拟模式响应式 state ---
+const mockMode = ref(false)
+const mockRiderCount = ref(6)
+const mockMarkers = ref([])
+const merchantLngLat = ref(null)
+const awaitPickMerchant = ref(false)
+
 let mapInstance = null
 let markerObjs = []
 let infoWindow = null
 let pollTimer = null
+
+// --- 模拟模式内部状态 ---
+let mockMarkerObjs = []
+let merchantMarker = null
+let mockMoveTimer = null
 
 // 状态 → 颜色 (0待接单橙、1已接单蓝、2配送中绿)
 const STATUS_COLOR = {
@@ -64,14 +107,161 @@ const STATUS_LABEL = {
 async function reload() {
   loading.value = true
   try {
-    const res = await listActiveDispatchLocations()
-    const rows = Array.isArray(res) ? res : (res.data || [])
+    let rows = []
+    if (mockMode.value) {
+      // 模拟模式:若没设过商家,自动用地图当前中心
+      if (!merchantLngLat.value && mapInstance) {
+        const c = mapInstance.getCenter()
+        merchantLngLat.value = [c.lng, c.lat]
+      }
+      if (mockMarkers.value.length !== mockRiderCount.value || mockMarkers.value.length === 0) {
+        regenerateMockRiders()
+      } else {
+        drawMockMarkers()
+      }
+      rows = mockMarkers.value
+    } else {
+      const res = await listActiveDispatchLocations()
+      rows = Array.isArray(res) ? res : (res.data || [])
+    }
     markers.value = rows
-    drawMarkers(rows)
+    if (!mockMode.value) drawMarkers(rows)
   } catch (e) {
     console.error('[RiderMap] 加载骑手位置失败', e)
   } finally {
     loading.value = false
+  }
+}
+
+/* ================== 模拟模式相关 ================== */
+
+function togglePickMerchant() {
+  if (!mapInstance || !window.AMap) {
+    ElMessage.warning('地图尚未加载完成,稍后再试')
+    return
+  }
+  awaitPickMerchant.value = !awaitPickMerchant.value
+  if (awaitPickMerchant.value) {
+    // 一次性监听,取地图上第一个落点作为商家
+    mapInstance.once('click', onMapClickPickMerchant)
+    ElMessage.info('请在地图上点击选商家位置')
+  } else {
+    mapInstance.off('click', onMapClickPickMerchant)
+  }
+}
+
+function onMapClickPickMerchant(e) {
+  merchantLngLat.value = [e.lnglat.lng, e.lnglat.lat]
+  awaitPickMerchant.value = false
+  ElMessage.success('商家位置已设定')
+  if (mockMode.value) regenerateMockRiders()
+}
+
+function regenerateMockRiders() {
+  if (!merchantLngLat.value) return
+  const [cLng, cLat] = merchantLngLat.value
+  const surnames = ['张', '李', '王', '赵', '钱', '孙', '周', '吴', '郑', '冯', '陈', '杨']
+  const rows = []
+  for (let i = 0; i < mockRiderCount.value; i++) {
+    const angle = Math.random() * 2 * Math.PI
+    const dist = 300 + Math.random() * 1700  // 300m - 2km
+    const dLng = (dist * Math.cos(angle)) / 111320
+    const dLat = (dist * Math.sin(angle)) / 110540
+    rows.push({
+      dispatchId: 900000 + i,
+      orderId: 800000 + i,
+      orderNo: 'MOCK' + (800000 + i),
+      riderId: 700 + i,
+      riderName: surnames[i % surnames.length] + '骑手' + (i + 1),
+      riderPhone: '1390000' + String(7000 + i).padStart(4, '0'),
+      status: String(i % 3),
+      lng: cLng + dLng,
+      lat: cLat + dLat,
+      angle: Math.random() * 2 * Math.PI
+    })
+  }
+  mockMarkers.value = rows
+  drawMockMarkers()
+}
+
+function drawMockMarkers() {
+  if (!mapInstance || !window.AMap) return
+  // 1. 商家 marker
+  if (merchantMarker) {
+    mapInstance.remove(merchantMarker)
+    merchantMarker = null
+  }
+  if (merchantLngLat.value) {
+    merchantMarker = new window.AMap.Marker({
+      position: merchantLngLat.value,
+      content: '<div class="merchant-marker">商家</div>',
+      offset: new window.AMap.Pixel(-32, -32),
+      zIndex: 200
+    })
+    mapInstance.add(merchantMarker)
+  }
+  // 2. 骑手 marker
+  mockMarkerObjs.forEach(m => mapInstance.remove(m))
+  mockMarkerObjs = []
+  mockMarkers.value.forEach(r => {
+    const color = STATUS_COLOR[r.status] || '#909399'
+    const marker = new window.AMap.Marker({
+      position: [r.lng, r.lat],
+      content: `<div class="rider-marker" style="background:${color}">${r.riderName}</div>`,
+      offset: new window.AMap.Pixel(-30, -30),
+      extData: r
+    })
+    marker.on('click', () => {
+      const content = `<div style="padding:8px;min-width:200px">
+        <div style="font-weight:600;margin-bottom:6px">${r.riderName} (模拟)</div>
+        <div>状态: <b style="color:${color}">${STATUS_LABEL[r.status] || r.status}</b></div>
+        <div>订单: ${r.orderNo}</div>
+        <div>经度: ${r.lng.toFixed(6)}</div>
+        <div>纬度: ${r.lat.toFixed(6)}</div>
+        <div style="color:#999;font-size:12px;margin-top:4px">演示数据,不写入数据库</div>
+      </div>`
+      if (!infoWindow) infoWindow = new window.AMap.InfoWindow({ offset: new window.AMap.Pixel(0, -32) })
+      infoWindow.setContent(content)
+      infoWindow.open(mapInstance, [r.lng, r.lat])
+    })
+    mockMarkerObjs.push(marker)
+    mapInstance.add(marker)
+  })
+  // 3. 自适应视野
+  if (merchantLngLat.value) {
+    mapInstance.setCenter(merchantLngLat.value)
+    mapInstance.setZoom(14)
+  } else if (mockMarkerObjs.length > 0) {
+    mapInstance.setFitView(mockMarkerObjs, false, [80, 80, 80, 80])
+  }
+}
+
+function startMockMove() {
+  stopMockMove()
+  mockMoveTimer = setInterval(() => {
+    if (!mockMode.value) return
+    mockMarkers.value.forEach(r => {
+      if (Math.random() < 0.3) {
+        r.angle = Math.random() * 2 * Math.PI
+      }
+      const step = 1.5 + Math.random() * 1.5  // 1.5-3m / s
+      const dLng = (step * Math.cos(r.angle || 0)) / 111320
+      const dLat = (step * Math.sin(r.angle || 0)) / 110540
+      r.lng += dLng
+      r.lat += dLat
+    })
+    // 仅移动 marker,不重建(性能)
+    mockMarkerObjs.forEach((m, idx) => {
+      const r = mockMarkers.value[idx]
+      if (r) m.setPosition([r.lng, r.lat])
+    })
+  }, 1000)
+}
+
+function stopMockMove() {
+  if (mockMoveTimer) {
+    clearInterval(mockMoveTimer)
+    mockMoveTimer = null
   }
 }
 
@@ -194,8 +384,45 @@ watch(autoRefresh, (val) => {
   }
 })
 
+// 模拟模式切换:开启时启动移动定时器 + 清真实数据 + 立刻重画;关闭时停定时器 + 清空 mock + 拉真实数据
+watch(mockMode, (val) => {
+  if (val) {
+    // 清掉真实数据 marker
+    markerObjs.forEach(m => mapInstance && mapInstance.remove(m))
+    markerObjs = []
+    // 没设过商家,用当前地图中心
+    if (mapInstance && !merchantLngLat.value) {
+      merchantLngLat.value = [mapInstance.getCenter().lng, mapInstance.getCenter().lat]
+    }
+    startMockMove()
+    regenerateMockRiders()
+  } else {
+    stopMockMove()
+    // 清 mock marker
+    mockMarkerObjs.forEach(m => mapInstance && mapInstance.remove(m))
+    mockMarkerObjs = []
+    if (merchantMarker) {
+      mapInstance.remove(merchantMarker)
+      merchantMarker = null
+    }
+    mockMarkers.value = []
+    // 切回真实数据
+    reload()
+  }
+})
+
+// 骑手数变化:重新生成(仅模拟模式)
+watch(mockRiderCount, () => {
+  if (mockMode.value) regenerateMockRiders()
+})
+
 onBeforeUnmount(() => {
   if (pollTimer) clearInterval(pollTimer)
+  stopMockMove()
+  if (merchantMarker && mapInstance) {
+    mapInstance.remove(merchantMarker)
+    merchantMarker = null
+  }
   if (mapInstance) {
     mapInstance.destroy()
     mapInstance = null
@@ -268,5 +495,19 @@ onBeforeUnmount(() => {
   line-height: 1.1;
   padding: 4px;
   word-break: break-all;
+}
+:deep(.merchant-marker) {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #f56c6c;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
 }
 </style>

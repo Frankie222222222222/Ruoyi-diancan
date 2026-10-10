@@ -23,11 +23,21 @@ import java.util.stream.Collectors;
  *       一键可转 MAKING</li>
  * </ul>
  *
+ * <h3>v3 堂食扩展（2026-10-10）</h3>
+ * 堂食订单独立状态机（在主流程上新增一档 DRAFT）：
+ * <ul>
+ *   <li>{@code DRAFT(0a)} — 堂食专用：顾客点菜中未支付（可继续 addItem）</li>
+ * </ul>
+ *
  * <h3>状态机</h3>
  * <pre>
  *   UNPAID ──► PAID ──► MAKING ──► READY ──► DELIVERING ──► DELIVERED ──► COMPLETED
  *     │         │         │          │
  *     └─►CANCELLED ◄──┘     └─►REFUNDED ◄──┘
+ *
+ *   DRAFT(0a) ──[支付]──► PAID(1)    (堂食: 重复买加菜,每单独立支付)
+ *     │
+ *     └─[30min 超时/顾客取消]──► CANCELLED(6)
  * </pre>
  *
  * @author ruoyi
@@ -36,6 +46,13 @@ public enum OrderStatusEnum
 {
     /** 0 待支付 */
     UNPAID("0", "待支付"),
+
+    /**
+     * 0a 堂食点菜中（v3 - 2026-10-10）
+     * <p>仅 {@code order_type=1} 堂食订单使用。顾客可继续 addItem 加菜；
+     * 触发"立即结账"→ PAID(1)；30 分钟无动作或顾客手动取消 → CANCELLED(6)。</p>
+     */
+    DRAFT("0a", "堂食点菜中"),
 
     /** 1 已支付 */
     PAID("1", "已支付"),
@@ -71,7 +88,14 @@ public enum OrderStatusEnum
     CANCELLED("6", "已取消"),
 
     /** 7 已退款 */
-    REFUNDED("7", "已退款");
+    REFUNDED("7", "已退款"),
+
+    /**
+     * 8 堂食已上桌（v3 - 2026-10-10）
+     * <p>仅 {@code order_type=1} 堂食订单。READY → DONE 由顾客/服务员点"已上桌"触发,
+     * 触发后桌台可释放回空闲。不走 DELIVERING/DELIVERED（无骑手）。</p>
+     */
+    DONE("8", "已上桌");
 
     private final String code;
     private final String description;
@@ -150,13 +174,18 @@ public enum OrderStatusEnum
     private static final Map<String, List<String>> NEXT_ALLOWED = new HashMap<>();
     static
     {
+        // 堂食点菜中: 可支付 或 取消
+        NEXT_ALLOWED.put(DRAFT.code,      Arrays.asList(PAID.code, CANCELLED.code));
         NEXT_ALLOWED.put(UNPAID.code,     Arrays.asList(PAID.code, CANCELLED.code));
         NEXT_ALLOWED.put(PAID.code,       Arrays.asList(MAKING.code, REFUNDED.code, CANCELLED.code));
         NEXT_ALLOWED.put(ACCEPTED.code,   Arrays.asList(MAKING.code, REFUNDED.code));
         NEXT_ALLOWED.put(MAKING.code,     Arrays.asList(READY.code, REFUNDED.code));
-        NEXT_ALLOWED.put(READY.code,      Arrays.asList(DELIVERING.code, REFUNDED.code));
+        // 堂食订单: READY → DONE (无骑手)
+        // 堂食订单: PAID → MAKING → READY → DONE
+        NEXT_ALLOWED.put(READY.code,      Arrays.asList(DELIVERING.code, DONE.code, REFUNDED.code));
         NEXT_ALLOWED.put(DELIVERING.code, Arrays.asList(DELIVERED.code));
         NEXT_ALLOWED.put(DELIVERED.code,  Arrays.asList(COMPLETED.code));
+        NEXT_ALLOWED.put(DONE.code,       Collections.emptyList());
         NEXT_ALLOWED.put(COMPLETED.code,  Collections.emptyList());
         NEXT_ALLOWED.put(CANCELLED.code,  Collections.emptyList());
         NEXT_ALLOWED.put(REFUNDED.code,   Collections.emptyList());

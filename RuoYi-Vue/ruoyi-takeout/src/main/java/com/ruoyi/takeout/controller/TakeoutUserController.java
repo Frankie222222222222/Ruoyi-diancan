@@ -44,6 +44,13 @@ public class TakeoutUserController extends BaseController
         return getDataTable(userService.selectUserList(user));
     }
 
+    /** 角色字典(给前端下拉用,公开) */
+    @GetMapping("/roleDict")
+    public AjaxResult roleDict()
+    {
+        return success(com.ruoyi.takeout.enums.UserRoleEnum.toMap());
+    }
+
     /** 详情 */
     @PreAuthorize("@ss.hasPermi('takeout:user:query')")
     @GetMapping("/{userId}")
@@ -168,14 +175,5 @@ public class TakeoutUserController extends BaseController
     {
         int rows = userService.changeUserRole(userId, role);
         return rows > 0 ? success() : error();
-    }
-
-    /**
-     * 角色字典(给前端下拉用,公开)
-     */
-    @GetMapping("/roleDict")
-    public AjaxResult roleDict()
-    {
-        return success(com.ruoyi.takeout.enums.UserRoleEnum.toMap());
     }
 }

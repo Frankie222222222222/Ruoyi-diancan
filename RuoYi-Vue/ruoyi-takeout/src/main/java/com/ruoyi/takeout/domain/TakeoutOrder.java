@@ -55,6 +55,17 @@ public class TakeoutOrder extends BaseEntity
     @Excel(name = "支付状态", readConverterExp = "0=未支付,1=已支付")
     private String payStatus;
 
+    /* ========== v3 堂食扩展(2026-10-10) ========== */
+
+    /** 订单类型(0外卖 1堂食) */
+    @Excel(name = "订单类型", readConverterExp = "0=外卖,1=堂食")
+    private Integer orderType;
+
+    /** 堂食桌台ID(order_type=1 时必填,关联 takeout_dine_table) */
+    private Long tableId;
+
+    /* ========== /v3 ========== */
+
     /** 支付方式 */
     @Excel(name = "支付方式")
     private String payMethod;
@@ -220,6 +231,30 @@ public class TakeoutOrder extends BaseEntity
     {
         this.payStatus = payStatus;
     }
+
+    /* ========== v3 堂食 getter/setter ========== */
+
+    public Integer getOrderType()
+    {
+        return orderType;
+    }
+
+    public void setOrderType(Integer orderType)
+    {
+        this.orderType = orderType;
+    }
+
+    public Long getTableId()
+    {
+        return tableId;
+    }
+
+    public void setTableId(Long tableId)
+    {
+        this.tableId = tableId;
+    }
+
+    /* ========== /v3 ========== */
 
     public String getPayMethod()
     {
@@ -445,6 +480,8 @@ public class TakeoutOrder extends BaseEntity
                 .append("deliveryFee", getDeliveryFee())
                 .append("status", getStatus())
                 .append("payStatus", getPayStatus())
+                .append("orderType", getOrderType())
+                .append("tableId", getTableId())
                 .append("payMethod", getPayMethod())
                 .append("receiverName", getReceiverName())
                 .append("receiverPhone", getReceiverPhone())

@@ -92,7 +92,10 @@ public class TakeoutTokenService
         loginUser.setUserId(user.getUserId());
         loginUser.setUser(sysUser);
         // C 端不绑定权限，permissions 留空
-        loginUser.setPermissions(Collections.emptySet());
+        // 2026-10-10 v3: 按 role 注入 permissions,使 C 端 token 能通过 @PreAuthorize
+        String role = user.getRole();
+        java.util.Set<String> perms = com.ruoyi.takeout.security.RolePermissionMap.get(role);
+        loginUser.setPermissions(perms == null ? java.util.Collections.emptySet() : perms);
 
         // 2) 生成 uuid 作 redis key
         String uuid = IdUtils.fastUUID();

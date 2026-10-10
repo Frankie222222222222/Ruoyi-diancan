@@ -121,6 +121,8 @@ public class SecurityConfig
                 requests.requestMatchers("/login", "/register", "/captchaImage").permitAll()
                     // C 端外卖登录/注册/登出/健康检查 允许匿名访问
                     .requestMatchers("/takeout/user/login", "/takeout/user/register", "/takeout/user/logout", "/takeout/statistics/ping").permitAll()
+                    // 堂食扫码进店(公开): 顾客扫码后进 H5 不需要登录
+                    .requestMatchers("/takeout/dineIn/table/*", "/takeout/dineIn/menu", "/takeout/dineIn/order/active").permitAll()
                     // ⚠️ 测试数据生成器（仅供本地调试,生产环境请删除）
                     .requestMatchers("/takeout/testData/**").permitAll()
                     // 静态资源，可匿名访问

@@ -109,4 +109,19 @@ public interface TakeoutOrderMapper
      * 后厨看板统计
      */
     java.util.Map<String, Object> countKitchenPending();
+
+    /* ========== v3 堂食扩展(2026-10-10) ========== */
+
+    /**
+     * 定时任务:取消超过 N 分钟未支付的 DRAFT 堂食订单
+     * @param minutes 超时分钟数
+     * @return 影响的行数
+     */
+    int cancelExpiredDineOrders(@Param("minutes") int minutes);
+
+    /**
+     * 某桌台堂食订单列表(可选 status 过滤,null=全部)
+     */
+    List<TakeoutOrder> selectDineOrdersByTable(@Param("tableId") Long tableId,
+                                                @Param("status") String status);
 }

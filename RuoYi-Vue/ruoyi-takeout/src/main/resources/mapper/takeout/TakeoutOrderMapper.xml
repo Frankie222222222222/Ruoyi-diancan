@@ -16,6 +16,10 @@
         <result property="couponUserId"   column="coupon_user_id"  />
         <result property="status"         column="status"          />
         <result property="payStatus"      column="pay_status"      />
+        <!-- v3 堂食字段 -->
+        <result property="orderType"      column="order_type"      />
+        <result property="tableId"        column="table_id"        />
+        <result property="payMethod"      column="pay_method"      />
         <result property="payMethod"      column="pay_method"      />
         <result property="receiverName"   column="receiver_name"   />
         <result property="receiverPhone"  column="receiver_phone"  />
@@ -53,7 +57,7 @@
         SELECT o.order_id, o.order_no, o.user_id, o.merchant_id,
                (SELECT m.merchant_name FROM takeout_merchant m
                   WHERE m.merchant_id = o.merchant_id AND m.del_flag = '0') AS merchant_name,
-               o.total_amount, o.delivery_fee, o.discount_amount, o.actual_amount, o.coupon_user_id, o.status, o.pay_status, o.pay_method,
+               o.total_amount, o.delivery_fee, o.discount_amount, o.actual_amount, o.coupon_user_id, o.status, o.pay_status, o.order_type, o.table_id, o.pay_method,
                o.receiver_name, o.receiver_phone, o.address, o.remark,
                o.delivery_time, o.pay_time, o.complete_time, o.cancel_reason, o.del_flag,
                o.kitchen_id, o.kitchen_accept_time, o.ready_time, o.rider_id, o.rider_accept_time,
@@ -79,6 +83,12 @@
             </if>
             <if test="payStatus != null and payStatus != ''">
                 AND o.pay_status = #{payStatus}
+            </if>
+            <if test="orderType != null">
+                AND o.order_type = #{orderType}
+            </if>
+            <if test="tableId != null">
+                AND o.table_id = #{tableId}
             </if>
             <if test="receiverName != null and receiverName != ''">
                 AND o.receiver_name LIKE CONCAT('%', #{receiverName}, '%')
@@ -126,6 +136,8 @@
             <if test="couponUserId != null">coupon_user_id,</if>
             <if test="status != null and status != ''">status,</if>
             <if test="payStatus != null and payStatus != ''">pay_status,</if>
+            <if test="orderType != null">order_type,</if>
+            <if test="tableId != null">table_id,</if>
             <if test="payMethod != null and payMethod != ''">pay_method,</if>
             <if test="receiverName != null and receiverName != ''">receiver_name,</if>
             <if test="receiverPhone != null and receiverPhone != ''">receiver_phone,</if>
@@ -146,6 +158,8 @@
             <if test="couponUserId != null">#{couponUserId},</if>
             <if test="status != null and status != ''">#{status},</if>
             <if test="payStatus != null and payStatus != ''">#{payStatus},</if>
+            <if test="orderType != null">#{orderType},</if>
+            <if test="tableId != null">#{tableId},</if>
             <if test="payMethod != null and payMethod != ''">#{payMethod},</if>
             <if test="receiverName != null and receiverName != ''">#{receiverName},</if>
             <if test="receiverPhone != null and receiverPhone != ''">#{receiverPhone},</if>
@@ -170,6 +184,8 @@
         <set>
             <if test="status != null and status != ''">status = #{status},</if>
             <if test="payStatus != null and payStatus != ''">pay_status = #{payStatus},</if>
+            <if test="orderType != null">order_type = #{orderType},</if>
+            <if test="tableId != null">table_id = #{tableId},</if>
             <if test="payMethod != null">pay_method = #{payMethod},</if>
             <if test="receiverName != null and receiverName != ''">receiver_name = #{receiverName},</if>
             <if test="receiverPhone != null and receiverPhone != ''">receiver_phone = #{receiverPhone},</if>
@@ -310,6 +326,32 @@
         WHERE o.del_flag = '0' AND o.order_id = #{orderId} AND o.status = '2b'
         FOR UPDATE
     </select>
+
+    <!-- 堂食订单:按桌台+状态查询(可选 status 过滤) -->
+    <select id="selectDineOrdersByTable" resultMap="TakeoutOrderResult">
+        <include refid="selectOrderVo"/>
+        <where>
+            o.del_flag = '0'
+              AND o.order_type = 1
+              AND o.table_id = #{tableId}
+            <if test="status != null and status != ''">
+                AND o.status = #{status}
+            </if>
+        </where>
+        ORDER BY o.create_time ASC
+    </select>
+
+    <!-- v3 堂食:定时任务,取消 30 分钟未支付的 DRAFT 订单 -->
+    <update id="cancelExpiredDineOrders">
+        UPDATE takeout_order
+        SET status = '6',
+            cancel_reason = CONCAT('超时未支付自动取消(>=', #{minutes}, '分钟)'),
+            update_time = NOW()
+        WHERE del_flag = '0'
+          AND order_type = 1
+          AND status = '0a'
+          AND create_time &lt;= DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE)
+    </update>
 
     <!-- 后厨拉取订单的待制/制作中统计(看板) -->
     <select id="countKitchenPending" resultType="java.util.HashMap">

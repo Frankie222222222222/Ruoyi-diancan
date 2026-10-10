@@ -96,4 +96,49 @@ public interface ITakeoutOrderService
      * 后厨出餐(MAKING → READY)
      */
     int kitchenReadyOrder(Long orderId, Long kitchenId);
+
+    /* ========== v3 堂食扩展(2026-10-10) ========== */
+
+    /**
+     * 堂食点菜: 创建 DRAFT 订单(order_type=1, status='0a')
+     * <p>不写 delivery_address / dispatch 字段;桌台状态联动置为"就餐中"。</p>
+     */
+    int createDineOrder(TakeoutOrder order);
+
+    /**
+     * 堂食加菜(DRAFT 状态追加菜品并重算金额)
+     */
+    int addDineOrderItem(Long orderId, com.ruoyi.takeout.domain.TakeoutOrderItem item);
+
+    /**
+     * 堂食订单结账(DRAFT → PAID,复用支付流程)
+     * <p>顾客扫码后调此接口,触发支付单生成 + 状态机迁移。</p>
+     */
+    int payDineOrder(Long orderId);
+
+    /**
+     * 堂食订单确认上桌(READY → DONE,触发桌台释放回空闲)
+     */
+    int confirmDineOrderServed(Long orderId);
+
+    /**
+     * 堂食订单取消(任意进行中状态 → CANCELLED,还库存+还桌台)
+     */
+    int cancelDineOrder(Long orderId, String reason);
+
+    /**
+     * 定时任务:超时 30 分钟未支付的 DRAFT 堂食订单自动取消
+     * @return 影响的行数
+     */
+    int autoCancelExpiredDineOrders();
+
+    /**
+     * 堂食订单列表(按桌台 + 状态)
+     */
+    List<TakeoutOrder> selectDineOrdersByTable(Long tableId, String status);
+
+    /**
+     * 桌台当前进行中堂食订单
+     */
+    List<TakeoutOrder> selectActiveDineOrdersByTable(Long tableId);
 }

@@ -11,10 +11,12 @@ import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.takeout.domain.Dish;
+import com.ruoyi.takeout.domain.TakeoutDineTable;
 import com.ruoyi.takeout.domain.TakeoutOrder;
 import com.ruoyi.takeout.domain.TakeoutOrderItem;
 import com.ruoyi.takeout.enums.OrderStatusEnum;
 import com.ruoyi.takeout.mapper.DishMapper;
+import com.ruoyi.takeout.mapper.TakeoutDineTableMapper;
 import com.ruoyi.takeout.mapper.TakeoutOrderMapper;
 import com.ruoyi.takeout.payment.PaymentChannel;
 import com.ruoyi.takeout.service.ITakeoutOrderService;
@@ -48,6 +50,9 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
 
     @Autowired
     private DishMapper dishMapper;
+
+    @Autowired
+    private TakeoutDineTableMapper dineTableMapper;
 
     @Autowired
     @Lazy
@@ -101,11 +106,23 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
     {
         if (StringUtils.isEmpty(order.getStatus()))
         {
-            order.setStatus(OrderStatusEnum.UNPAID.getCode());
+            // v3 堂食订单默认 DRAFT, 外卖默认 UNPAID
+            if (Integer.valueOf(1).equals(order.getOrderType()))
+            {
+                order.setStatus(OrderStatusEnum.DRAFT.getCode());
+            }
+            else
+            {
+                order.setStatus(OrderStatusEnum.UNPAID.getCode());
+            }
         }
         if (StringUtils.isEmpty(order.getPayStatus()))
         {
             order.setPayStatus("0");
+        }
+        if (order.getOrderType() == null)
+        {
+            order.setOrderType(0);
         }
         // P2-B: 调用方没传 orderNo 时，服务端兜底生成（避免 controller 漏传导致 NULL）
         if (StringUtils.isEmpty(order.getOrderNo()))
@@ -285,10 +302,11 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
                 String.format("[ERR_%d] 订单不存在，id=%s", ERR_ORDER_NOT_FOUND, orderId),
                 ERR_ORDER_NOT_FOUND);
         }
-        // 仅待支付 / 已支付可取消
+        // 仅待支付 / 已支付 / 堂食点菜中(DRAFT) 可取消
         String cur = exist.getStatus();
         if (!OrderStatusEnum.UNPAID.getCode().equals(cur)
-                && !OrderStatusEnum.PAID.getCode().equals(cur))
+                && !OrderStatusEnum.PAID.getCode().equals(cur)
+                && !OrderStatusEnum.DRAFT.getCode().equals(cur))
         {
             throw new ServiceException(
                 String.format("[ERR_%d] 当前状态「%s」不允许取消", ERR_CANCEL_NOT_ALLOW, cur),
@@ -501,5 +519,243 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
             return orderMapper.updateOrder(upd);
         }
         return 1;
+    }
+
+    /* ========== v3 堂食扩展(2026-10-10) ========== */
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int createDineOrder(TakeoutOrder order)
+    {
+        if (order == null || order.getMerchantId() == null || order.getTableId() == null)
+        {
+            throw new ServiceException("[ERR_2002] 堂食订单缺少 merchantId / tableId", 2002);
+        }
+        if (order.getOrderItems() == null || order.getOrderItems().isEmpty())
+        {
+            throw new ServiceException("[ERR_2006] 堂食订单至少需要 1 个菜品", 2006);
+        }
+        // 校验桌台存在
+        TakeoutDineTable table = dineTableMapper.selectDineTableById(order.getTableId());
+        if (table == null || !table.getMerchantId().equals(order.getMerchantId()))
+        {
+            throw new ServiceException(
+                String.format("[ERR_2002] 桌台不存在或与商家不匹配 tableId=%s", order.getTableId()),
+                2002);
+        }
+        // 落库(复用 insertOrder,orderType=1 自动 DRAFT)
+        order.setOrderType(1);
+        // 堂食无配送费
+        if (order.getDeliveryFee() == null)
+        {
+            order.setDeliveryFee(java.math.BigDecimal.ZERO);
+        }
+        int rows = insertOrder(order);
+        if (rows > 0)
+        {
+            // 桌台置就餐中
+            dineTableMapper.updateDineTableStatus(toStatusTable(order.getTableId(), "1"));
+        }
+        return rows;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int addDineOrderItem(Long orderId, TakeoutOrderItem item)
+    {
+        if (orderId == null || item == null || item.getDishId() == null)
+        {
+            throw new ServiceException("[ERR_2002] 加菜缺少 orderId/dishId", 2002);
+        }
+        TakeoutOrder exist = orderMapper.selectOrderById(orderId);
+        if (exist == null || !Integer.valueOf(1).equals(exist.getOrderType()))
+        {
+            throw new ServiceException("[ERR_2002] 堂食订单不存在", 2002);
+        }
+        if (!OrderStatusEnum.DRAFT.getCode().equals(exist.getStatus()))
+        {
+            throw new ServiceException(
+                String.format("[ERR_2003] 仅 DRAFT 状态可加菜,当前=%s", exist.getStatus()),
+                2003);
+        }
+        Dish d = dishMapper.selectDishById(item.getDishId());
+        if (d == null)
+        {
+            throw new ServiceException(String.format("[ERR_2007] 菜品不存在 dishId=%s", item.getDishId()), 2007);
+        }
+        if (!d.getMerchantId().equals(exist.getMerchantId()))
+        {
+            throw new ServiceException("[ERR_2008] 菜品商家不匹配", 2008);
+        }
+        int qty = item.getQuantity() == null || item.getQuantity() <= 0 ? 1 : item.getQuantity();
+        item.setOrderId(orderId);
+        item.setDishName(d.getDishName());
+        item.setDishImage(d.getImage());
+        item.setPrice(d.getPrice());
+        item.setSubtotal(d.getPrice().multiply(new java.math.BigDecimal(qty)));
+        orderMapper.insertOrderItems(java.util.Collections.singletonList(item));
+        // 重新计算金额
+        java.math.BigDecimal total = recomputeDineOrderTotal(orderId);
+        TakeoutOrder upd = new TakeoutOrder();
+        upd.setOrderId(orderId);
+        upd.setTotalAmount(total);
+        upd.setActualAmount(total.subtract(exist.getDiscountAmount() == null ? java.math.BigDecimal.ZERO : exist.getDiscountAmount()));
+        upd.setUpdateBy("dine:addItem");
+        return orderMapper.updateOrder(upd);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int payDineOrder(Long orderId)
+    {
+        if (orderId == null)
+        {
+            throw new ServiceException("[ERR_2002] orderId 必填", 2002);
+        }
+        TakeoutOrder exist = orderMapper.selectOrderById(orderId);
+        if (exist == null)
+        {
+            throw new ServiceException("[ERR_2002] 订单不存在", 2002);
+        }
+        if (!OrderStatusEnum.DRAFT.getCode().equals(exist.getStatus()))
+        {
+            throw new ServiceException(
+                String.format("[ERR_2003] 仅 DRAFT 可结账,当前=%s", exist.getStatus()),
+                2003);
+        }
+        // 走状态机 DRAFT → PAID(状态机已支持),但走 changeOrderStatus 会校验时序,所以直接走专用路径:
+        TakeoutOrder upd = new TakeoutOrder();
+        upd.setOrderId(orderId);
+        upd.setStatus(OrderStatusEnum.PAID.getCode());
+        upd.setPayStatus("1");
+        upd.setPayTime(DateUtils.getNowDate());
+        upd.setUpdateBy("dine:pay");
+        int rows = orderMapper.updateOrderStatus(upd);
+        if (rows > 0)
+        {
+            log.info("dine order paid: id={} amount={}", orderId, exist.getTotalAmount());
+        }
+        return rows;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int confirmDineOrderServed(Long orderId)
+    {
+        // READY → DONE
+        changeOrderStatus(orderId, OrderStatusEnum.DONE.getCode());
+        // 释放桌台:仅当该桌台没有其他进行中订单
+        TakeoutOrder order = orderMapper.selectOrderById(orderId);
+        if (order != null && order.getTableId() != null)
+        {
+            int active = dineTableMapper.countActiveDineOrdersByTableId(order.getTableId());
+            if (active == 0)
+            {
+                TakeoutDineTable t = toStatusTable(order.getTableId(), "0");
+                dineTableMapper.updateDineTableStatus(t);
+            }
+        }
+        return 1;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int cancelDineOrder(Long orderId, String reason)
+    {
+        TakeoutOrder exist = orderMapper.selectOrderById(orderId);
+        if (exist == null)
+        {
+            throw new ServiceException("[ERR_2002] 订单不存在", 2002);
+        }
+        if (!Integer.valueOf(1).equals(exist.getOrderType()))
+        {
+            throw new ServiceException("[ERR_2008] 非堂食订单,请用 /takeout/order/cancel", 2008);
+        }
+        // 复用通用 cancelOrder(已扩展支持 DRAFT/PAID)
+        int rows = cancelOrder(orderId, reason == null ? "堂食取消" : reason);
+        // 释放桌台
+        if (exist.getTableId() != null)
+        {
+            int active = dineTableMapper.countActiveDineOrdersByTableId(exist.getTableId());
+            if (active == 0)
+            {
+                dineTableMapper.updateDineTableStatus(toStatusTable(exist.getTableId(), "0"));
+            }
+        }
+        return rows;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int autoCancelExpiredDineOrders()
+    {
+        // 30 分钟未支付的 DRAFT 堂食订单
+        int rows = orderMapper.cancelExpiredDineOrders(30);
+        if (rows > 0)
+        {
+            log.info("auto cancelled {} expired dine orders (>30min DRAFT)", rows);
+            // 同步释放桌台(找出受影响的桌台)
+            TakeoutOrder q = new TakeoutOrder();
+            q.setOrderType(1);
+            q.setStatus(OrderStatusEnum.CANCELLED.getCode());
+            List<TakeoutOrder> cancelled = orderMapper.selectOrderList(q);
+            if (cancelled != null)
+            {
+                for (TakeoutOrder o : cancelled)
+                {
+                    if (o.getTableId() == null) continue;
+                    int active = dineTableMapper.countActiveDineOrdersByTableId(o.getTableId());
+                    if (active == 0)
+                    {
+                        dineTableMapper.updateDineTableStatus(toStatusTable(o.getTableId(), "0"));
+                    }
+                }
+            }
+        }
+        return rows;
+    }
+
+    @Override
+    public List<TakeoutOrder> selectDineOrdersByTable(Long tableId, String status)
+    {
+        return orderMapper.selectDineOrdersByTable(tableId, status);
+    }
+
+    @Override
+    public List<TakeoutOrder> selectActiveDineOrdersByTable(Long tableId)
+    {
+        return orderMapper.selectDineOrdersByTable(tableId, null);
+    }
+
+    /** 重新计算某堂食订单的 total/actual amount(基于明细) */
+    private java.math.BigDecimal recomputeDineOrderTotal(Long orderId)
+    {
+        List<TakeoutOrderItem> items = orderMapper.selectOrderItemsByOrderId(orderId);
+        java.math.BigDecimal total = java.math.BigDecimal.ZERO;
+        if (items != null)
+        {
+            for (TakeoutOrderItem i : items)
+            {
+                if (i.getSubtotal() != null)
+                {
+                    total = total.add(i.getSubtotal());
+                }
+                else if (i.getPrice() != null && i.getQuantity() != null)
+                {
+                    total = total.add(i.getPrice().multiply(new java.math.BigDecimal(i.getQuantity())));
+                }
+            }
+        }
+        return total;
+    }
+
+    /** 桌台状态更新 helper(避免重复 set) */
+    private TakeoutDineTable toStatusTable(Long tableId, String status)
+    {
+        TakeoutDineTable t = new TakeoutDineTable();
+        t.setTableId(tableId);
+        t.setStatus(status);
+        t.setUpdateBy("system");
+        return t;
     }
 }

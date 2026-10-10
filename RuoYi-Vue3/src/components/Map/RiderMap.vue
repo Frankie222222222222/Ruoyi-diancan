@@ -91,6 +91,8 @@ let pollTimer = null
 let mockMarkerObjs = []
 let merchantMarker = null
 let mockMoveTimer = null
+// 记录骑手上一次位置，用于计算方向箭头
+const lastPosition = new Map()
 
 // 状态 → 颜色 (0待接单橙、1已接单蓝、2配送中绿)
 const STATUS_COLOR = {
@@ -194,8 +196,8 @@ function drawMockMarkers() {
   if (merchantLngLat.value) {
     merchantMarker = new window.AMap.Marker({
       position: merchantLngLat.value,
-      content: '<div class="merchant-marker">商家</div>',
-      offset: new window.AMap.Pixel(-32, -32),
+      content: '<div class="merchant-marker">🏪</div>',
+      offset: new window.AMap.Pixel(-24, -48),
       zIndex: 200
     })
     mapInstance.add(merchantMarker)
@@ -205,10 +207,11 @@ function drawMockMarkers() {
   mockMarkerObjs = []
   mockMarkers.value.forEach(r => {
     const color = STATUS_COLOR[r.status] || '#909399'
+    const heading = computeHeading(r.riderId, r.lng, r.lat)
     const marker = new window.AMap.Marker({
       position: [r.lng, r.lat],
-      content: `<div class="rider-marker" style="background:${color}">${r.riderName}</div>`,
-      offset: new window.AMap.Pixel(-30, -30),
+      content: `<div class="rider-marker" style="--marker-color:${color};--heading:${heading}deg"><span class="name">${r.riderName}</span></div>`,
+      offset: new window.AMap.Pixel(-20, -27),
       extData: r
     })
     marker.on('click', () => {
@@ -223,6 +226,7 @@ function drawMockMarkers() {
       if (!infoWindow) infoWindow = new window.AMap.InfoWindow({ offset: new window.AMap.Pixel(0, -32) })
       infoWindow.setContent(content)
       infoWindow.open(mapInstance, [r.lng, r.lat])
+      pulseMarker(marker)
     })
     mockMarkerObjs.push(marker)
     mapInstance.add(marker)
@@ -250,10 +254,15 @@ function startMockMove() {
       r.lng += dLng
       r.lat += dLat
     })
-    // 仅移动 marker,不重建(性能)
+    // 仅移动 marker,顺带刷新方向箭头
     mockMarkerObjs.forEach((m, idx) => {
       const r = mockMarkers.value[idx]
-      if (r) m.setPosition([r.lng, r.lat])
+      if (!r) return
+      m.setPosition([r.lng, r.lat])
+      const heading = computeHeading(r.riderId, r.lng, r.lat)
+      const dom = m.getDomElement && m.getDomElement()
+      const inner = dom && dom.querySelector('.rider-marker')
+      if (inner) inner.style.setProperty('--heading', heading + 'deg')
     })
   }, 1000)
 }
@@ -263,6 +272,42 @@ function stopMockMove() {
     clearInterval(mockMoveTimer)
     mockMoveTimer = null
   }
+}
+
+/**
+ * 计算骑手朝向角度（0=北，顺时针增加；用于 .rider-marker::after 的 --heading）
+ * 算法：拿"上一位置→当前位置"的位移，atan2(dLng, dLat)
+ * 因为高德地图 y 向下为正，所以 dLat>0 表示向南，atan2(dLng, dLat) 直接得出"从北顺时针"的角度
+ */
+function computeHeading(riderId, lng, lat) {
+  const prev = lastPosition.get(riderId)
+  let heading = 0
+  if (prev) {
+    const dLng = lng - prev.lng
+    const dLat = lat - prev.lat
+    // 阈值：移动距离 < 0.5m 视为静止，保持上次方向
+    const dist = Math.sqrt(dLng * dLng + dLat * dLat)
+    if (dist > 1e-5) {
+      heading = Math.atan2(dLng, dLat) * 180 / Math.PI
+    } else if (prev.heading !== undefined) {
+      heading = prev.heading
+    }
+  }
+  lastPosition.set(riderId, { lng, lat, heading })
+  return heading
+}
+
+/**
+ * 触发 marker 脉冲动画（点击反馈）
+ */
+function pulseMarker(markerObj) {
+  try {
+    const dom = markerObj && markerObj.getDomElement && markerObj.getDomElement()
+    const inner = dom && dom.querySelector('.rider-marker')
+    if (!inner) return
+    inner.classList.add('pulse')
+    setTimeout(() => inner.classList.remove('pulse'), 3000)
+  } catch (_) { /* noop */ }
 }
 
 function drawMarkers(rows) {
@@ -281,10 +326,11 @@ function drawMarkers(rows) {
     if (Number.isNaN(lng) || Number.isNaN(lat)) return
 
     const color = STATUS_COLOR[row.status] || '#909399'
+    const heading = computeHeading(row.riderId, lng, lat)
     const marker = new window.AMap.Marker({
       position: [lng, lat],
-      content: `<div class="rider-marker" style="background:${color}">${row.riderName || row.riderId}</div>`,
-      offset: new window.AMap.Pixel(-30, -30),
+      content: `<div class="rider-marker" style="--marker-color:${color};--heading:${heading}deg"><span class="name">${row.riderName || row.riderId}</span></div>`,
+      offset: new window.AMap.Pixel(-20, -27),
       extData: row
     })
     marker.on('click', () => {
@@ -303,6 +349,7 @@ function drawMarkers(rows) {
       if (!infoWindow) infoWindow = new window.AMap.InfoWindow({ offset: new window.AMap.Pixel(0, -32) })
       infoWindow.setContent(content)
       infoWindow.open(mapInstance, [lng, lat])
+      pulseMarker(marker)
     })
     markerObjs.push(marker)
     mapInstance.add(marker)
@@ -394,6 +441,8 @@ watch(mockMode, (val) => {
     if (mapInstance && !merchantLngLat.value) {
       merchantLngLat.value = [mapInstance.getCenter().lng, mapInstance.getCenter().lat]
     }
+    // 清空旧位置缓存,防止真实数据的 heading 干扰模拟
+    lastPosition.clear()
     startMockMove()
     regenerateMockRiders()
   } else {
@@ -406,6 +455,8 @@ watch(mockMode, (val) => {
       merchantMarker = null
     }
     mockMarkers.value = []
+    // 清空缓存,切回真实数据时重新计算 heading
+    lastPosition.clear()
     // 切回真实数据
     reload()
   }
@@ -427,6 +478,8 @@ onBeforeUnmount(() => {
     mapInstance.destroy()
     mapInstance = null
   }
+  // 清理骑手位置缓存
+  lastPosition.clear()
 })
 </script>
 
@@ -479,9 +532,11 @@ onBeforeUnmount(() => {
   margin: 4px 0 0 16px;
   padding: 0;
 }
+/* 骑手头像：40px 圆 + 状态色描边 + 阴影 */
 :deep(.rider-marker) {
-  width: 60px;
-  height: 60px;
+  position: relative;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   color: #fff;
   font-size: 12px;
@@ -489,25 +544,86 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,.3);
-  text-align: center;
-  line-height: 1.1;
-  padding: 4px;
-  word-break: break-all;
+  border: 3px solid var(--marker-color, #909399);
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: transform 0.15s ease;
 }
-:deep(.merchant-marker) {
-  width: 64px;
-  height: 64px;
+:deep(.rider-marker:hover) {
+  transform: scale(1.08);
+}
+/* 名字字标 */
+:deep(.rider-marker .name) {
+  position: relative;
+  z-index: 1;
+  color: #303133;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 36px;
+}
+/* 底部方向箭头：朝下的小三角，绝对定位 */
+:deep(.rider-marker::after) {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%) rotate(var(--heading, 0deg));
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 9px solid var(--marker-color, #909399);
+  transform-origin: 50% 30%;
+}
+/* 点击时的脉冲外圈 */
+:deep(.rider-marker.pulse::before) {
+  content: '';
+  position: absolute;
+  inset: -6px;
   border-radius: 50%;
-  background: #f56c6c;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
+  border: 2px solid var(--marker-color, #909399);
+  animation: riderPulse 1.2s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes riderPulse {
+  0% { transform: scale(0.8); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* 商家：店铺形小图标 */
+:deep(.merchant-marker) {
+  width: 48px;
+  height: 48px;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 4px solid #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  background: #f56c6c;
+  border-radius: 8px 8px 8px 2px;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 22px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+:deep(.merchant-marker:hover) {
+  transform: scale(1.08);
+}
+:deep(.merchant-marker::after) {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 6px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid #f56c6c;
 }
 </style>

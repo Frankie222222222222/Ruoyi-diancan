@@ -1,0 +1,4 @@
+﻿index.vue UTF8-CJK=149 GBK-CJK=189
+index.vue UTF8-CJK=231 GBK-CJK=293
+index.vue UTF8-CJK=496 GBK-CJK=712
+index.vue UTF8-CJK=586 GBK-CJK=934

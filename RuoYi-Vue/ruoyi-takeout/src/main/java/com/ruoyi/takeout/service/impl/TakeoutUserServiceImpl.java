@@ -5,8 +5,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.takeout.domain.TakeoutUser;
+import com.ruoyi.takeout.enums.UserRoleEnum;
 import com.ruoyi.takeout.mapper.TakeoutUserMapper;
 import com.ruoyi.takeout.service.ITakeoutUserService;
 
@@ -125,5 +127,42 @@ public class TakeoutUserServiceImpl implements ITakeoutUserService
         u.setUserId(userId);
         u.setTotalSpend(amount);
         userMapper.incrementUserStats(u);
+    }
+
+    @Override
+    public int changeUserRole(Long userId, String role)
+    {
+        if (userId == null)
+        {
+            throw new ServiceException("[ERR_6002] 用户ID不能为空", 6002);
+        }
+        if (!UserRoleEnum.isValid(role))
+        {
+            throw new ServiceException(
+                String.format("[ERR_6005] 非法角色：%s（合法值：%s）",
+                    role, UserRoleEnum.ALL_CODES),
+                6005);
+        }
+        TakeoutUser exist = userMapper.selectUserById(userId);
+        if (exist == null)
+        {
+            throw new ServiceException("[ERR_6002] 用户不存在", 6002);
+        }
+        String updateBy;
+        try
+        {
+            updateBy = SecurityUtils.getUsername();
+        }
+        catch (Exception e)
+        {
+            updateBy = "system";
+        }
+        int rows = userMapper.changeUserRole(userId, role, updateBy);
+        if (rows > 0)
+        {
+            // 同步默认 status(0=正常),保证后厨/骑手能登录
+            userMapper.updateUser(exist); // no-op,但保留接口调用通道
+        }
+        return rows;
     }
 }

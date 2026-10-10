@@ -1,0 +1,246 @@
+.container {
+	background-color: $bg-color-white;
+	display: flex;
+	flex-direction: column;
+}
+
+.header {
+	z-index: 10;
+
+	.center {
+		padding: 10rpx 40rpx;
+		display: flex;
+		flex-direction: column;
+
+		.store {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+
+			.title {
+				flex: 1;
+				display: flex;
+				// align-items: center;
+				overflow: hidden;
+				flex-direction: column;
+				
+				.address {
+					font-size: $font-size-lg;
+					color: $text-color-base;
+					font-weight: bold;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+				}
+				
+				.business{
+					font-size: 24rpx;
+					// margin-top: 5rpx;
+					color: $u-type-info;
+				}
+			}
+
+			.buttons {
+				display: flex;
+				align-items: stretch;
+				background-color: #f6f6f6;
+				border-radius: 50rem !important;
+				padding: 4rpx;
+				border: 2rpx solid #eaeaea;
+
+				.button {
+					height: 100%;
+					width: 50%;
+					border-radius: 50rem !important;
+					border: 0 !important;
+					font-size: $font-size-sm !important;
+					line-height: 2.4 !important;
+
+					&.active {
+						background-color: #0A3D28;
+						color: #ffffff !important;
+						transition: all 0.3s;
+					}
+				}
+			}
+		}
+	}
+}
+
+.main {
+	flex: 1;
+	display: flex;
+	overflow: hidden;
+}
+
+.menu-bar {
+	width: 170rpx;
+	background-color: #f6f6f6;
+	
+	.wrapper {
+		height: auto;
+	
+		.menu-item {
+			padding: 30rpx 20rpx;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			font-size: $font-size-base;
+			color: $text-color-assist;
+			overflow: hidden;
+			
+			&:nth-last-child(1) {
+				margin-bottom: 100rpx;
+			}
+			
+			.image {
+				width: 50rpx;
+				height: 50rpx;
+			}
+
+			.title {
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			&.active {
+				background-color: #ffffff;
+				color: $text-color-base;
+				font-weight: 500 !important;
+				border-left: 7rpx solid #0A3D28;
+			}
+		}
+	}
+}
+
+.product-section {
+	flex: 1;
+	
+	.wrapper {
+		padding: 0 20rpx;
+		padding-bottom: 130rpx;
+	}
+
+	// .ads1,
+	// .ads2 {
+	// 	height: 300rpx;
+	// }
+	// .ads1 {
+	// 	margin-bottom: 20rpx;
+	// }
+	
+	.products-list {
+		.category-name {
+			padding: 30rpx 0;
+			font-size: $font-size-base;
+			color: $text-color-assist;
+		}
+		
+		.products {
+			display: flex;
+			flex-direction: column;
+			margin-bottom: $spacing-row-base;
+		}
+		
+		.product {
+			display: flex;
+			align-items: flex-start;
+			margin-bottom: 40rpx;
+			justify-content: space-between;
+			
+			.image {
+				width: 180rpx;
+				height: 135rpx;
+				flex-shrink: 0;
+				margin-right: 20rpx;
+				border-radius: 8rpx;
+			}
+			
+			.content {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+				
+				.name {
+					font-size: $font-size-medium;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					// white-space: nowrap;
+					margin-bottom: 8rpx;
+					font-weight: bold;
+					display: -webkit-box;
+					-webkit-box-orient: vertical;
+					-webkit-line-clamp: 2;
+				}
+				
+				.sold{
+					color: $u-type-info;
+					font-size: 20rpx;
+					margin-bottom: 9rpx;
+					// letter-spacing: 2rpx;
+				}
+				
+				.labels {
+					display: flex;
+					font-size: 20rpx;
+					overflow: hidden;
+					flex-wrap: wrap;
+					.label {
+						max-width: 40%;
+						padding: 6rpx 10rpx;
+						margin-right: 10rpx;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						white-space: nowrap;
+					}
+				}
+				
+				.price {
+					display: flex;
+					align-items: baseline;
+					justify-content: space-between;
+					margin-top: 20rpx;
+					
+					.prices{
+						display: flex;
+						align-items: baseline;
+						color: #FF362D;
+						font-weight: bold;
+						
+						text:nth-child(1){
+							font-size: 20rpx;
+							margin-right: 5rpx;
+						}
+						
+						text:nth-child(2){
+							font-size: 30rpx;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+.cart-actions {
+	display: flex;
+	align-items: center;
+
+	.add-btn,
+	.minus-btn {
+		width: 50rpx;
+		height: 50rpx;
+	}
+
+	.number {
+		width: 50rpx;
+		height: 50rpx;
+		margin: 0 20rpx;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		font-size: $font-size-extra-lg;
+	}
+}

@@ -111,6 +111,18 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+                <configuration>
+                    <!-- v2 (2026-10-10): JDK 17 + Mockito 5 + Surefire 3.x 需要开 module 访问,
+                         否则 NoClassDefFoundError: DishMapper 等 mapper 接口注入会失败 -->
+                    <argLine>
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+                    </argLine>
+                    <!-- 强制每个 test class 单独 fork,避免 class loader 缓存导致 mapper 加载失败 -->
+                    <forkCount>1</forkCount>
+                    <reuseForks>true</reuseForks>
+                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -1,0 +1,446 @@
+﻿<template>
+  <div class="app-container">
+    <!-- 查询区 -->
+    <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="80px">
+      <el-form-item label="菜品名称" prop="dishName">
+        <el-input
+          v-model="queryParams.dishName"
+          placeholder="请输入菜品名称"
+          clearable
+          style="width: 200px"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="菜品分类" prop="categoryId">
+        <el-select v-model="queryParams.categoryId" placeholder="请选择分类" clearable style="width: 200px">
+          <el-option
+            v-for="c in categoryOptions"
+            :key="c.categoryId"
+            :label="c.categoryName"
+            :value="c.categoryId"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="状态" prop="status">
+        <el-select v-model="queryParams.status" placeholder="菜品状态" clearable style="width: 160px">
+          <el-option label="下架" value="0" />
+          <el-option label="上架" value="1" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
+        <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+      </el-form-item>
+    </el-form>
+
+    <!-- 工具栏 -->
+    <el-row :gutter="10" class="mb8">
+      <el-col :span="1.5">
+        <el-button
+          type="primary"
+          plain
+          icon="Plus"
+          @click="handleAdd"
+          v-hasPermi="['takeout:dish:add']"
+        >新增</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="success"
+          plain
+          icon="Edit"
+          :disabled="single"
+          @click="handleUpdate"
+          v-hasPermi="['takeout:dish:edit']"
+        >修改</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="danger"
+          plain
+          icon="Delete"
+          :disabled="multiple"
+          @click="handleDelete"
+          v-hasPermi="['takeout:dish:remove']"
+        >删除</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="warning"
+          plain
+          icon="Refresh"
+          :disabled="single"
+          @click="handleStockDialog"
+          v-hasPermi="['takeout:dish:edit']"
+        >调整库存</el-button>
+      </el-col>
+      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" :columns="columns" storageKey="takeout_dish" />
+    </el-row>
+
+    <!-- 表格 -->
+    <el-table v-loading="loading" :data="dishList" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="50" align="center" />
+      <el-table-column label="菜品编号" align="center" key="dishId" prop="dishId" v-if="columns.dishId.visible" width="80" />
+      <el-table-column label="菜品图片" align="center" key="image" prop="image" v-if="columns.image.visible" width="80">
+        <template #default="scope">
+          <el-image
+            v-if="scope.row.image"
+            :src="scope.row.image"
+            :preview-src-list="[scope.row.image]"
+            fit="cover"
+            style="width: 48px; height: 48px; border-radius: 4px"
+            :preview-teleported="true"
+            hide-on-click-modal
+          />
+          <span v-else class="text-muted">无</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="菜品名称" align="center" key="dishName" prop="dishName" v-if="columns.dishName.visible" :show-overflow-tooltip="true" />
+      <el-table-column label="所属分类" align="center" key="categoryName" prop="categoryName" v-if="columns.categoryName.visible" />
+      <el-table-column label="价格(元)" align="center" key="price" prop="price" v-if="columns.price.visible" width="100">
+        <template #default="scope">
+          <span>￥ {{ scope.row.price }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="库存" align="center" key="stock" prop="stock" v-if="columns.stock.visible" width="80" />
+      <el-table-column label="销量" align="center" key="sales" prop="sales" v-if="columns.sales.visible" width="80" />
+      <el-table-column label="状态" align="center" key="status" v-if="columns.status.visible" width="100">
+        <template #default="scope">
+          <el-switch
+            v-model="scope.row.status"
+            active-value="1"
+            inactive-value="0"
+            @change="handleStatusChange(scope.row)"
+            v-hasPermi="['takeout:dish:edit']"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="描述" align="center" key="description" prop="description" v-if="columns.description.visible" :show-overflow-tooltip="true" />
+      <el-table-column label="创建时间" align="center" prop="createTime" v-if="columns.createTime.visible" width="160">
+        <template #default="scope">
+          <span>{{ parseTime(scope.row.createTime) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" align="center" width="180" class-name="small-padding fixed-width">
+        <template #default="scope">
+          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['takeout:dish:edit']">修改</el-button>
+          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['takeout:dish:remove']">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <pagination
+      v-show="total > 0"
+      :total="total"
+      v-model:page="queryParams.pageNum"
+      v-model:limit="queryParams.pageSize"
+      @pagination="getList"
+    />
+
+    <!-- 新增/修改 弹窗 -->
+    <el-dialog :title="title" v-model="open" width="600px" append-to-body>
+      <el-form :model="form" :rules="rules" ref="dishRef" label-width="100px">
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="菜品名称" prop="dishName">
+              <el-input v-model="form.dishName" placeholder="请输入菜品名称" maxlength="100" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="所属分类" prop="categoryId">
+              <el-select v-model="form.categoryId" placeholder="请选择分类" style="width: 100%">
+                <el-option
+                  v-for="c in categoryOptions"
+                  :key="c.categoryId"
+                  :label="c.categoryName"
+                  :value="c.categoryId"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="价格" prop="price">
+              <el-input-number v-model="form.price" :precision="2" :min="0" :step="1" placeholder="元" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="初始库存" prop="stock">
+              <el-input-number v-model="form.stock" :min="0" :step="1" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="状态">
+              <el-radio-group v-model="form.status">
+                <el-radio value="0">下架</el-radio>
+                <el-radio value="1">上架</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="24">
+            <el-form-item label="菜品图片" prop="image">
+              <el-input v-model="form.image" placeholder="请输入图片URL" maxlength="500" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="24">
+            <el-form-item label="描述" prop="description">
+              <el-input v-model="form.description" type="textarea" placeholder="菜品描述、口味、份量等" maxlength="500" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button type="primary" @click="submitForm">确 定</el-button>
+          <el-button @click="cancel">取 消</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 调整库存 弹窗 -->
+    <el-dialog title="调整库存" v-model="stockOpen" width="420px" append-to-body>
+      <el-form :model="stockForm" :rules="stockRules" ref="stockRef" label-width="100px">
+        <el-form-item label="当前库存">
+          <span>{{ stockForm.currentStock }}</span>
+        </el-form-item>
+        <el-form-item label="调整数量" prop="delta">
+          <el-input-number v-model="stockForm.delta" :step="1" placeholder="正数增加 / 负数减少" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button type="primary" @click="submitStock">确 定</el-button>
+          <el-button @click="stockOpen = false">取 消</el-button>
+        </div>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup name="TakeoutDish">
+import { listDish, getDish, addDish, updateDish, delDish, changeDishStatus, adjustDishStock } from "@/api/takeout/dish"
+import { optionselectCategory } from "@/api/takeout/dishCategory"
+
+const { proxy } = getCurrentInstance()
+
+// 列表数据
+const dishList = ref([])
+const open = ref(false)
+const loading = ref(true)
+const showSearch = ref(true)
+const ids = ref([])
+const single = ref(true)
+const multiple = ref(true)
+const total = ref(0)
+const title = ref("")
+
+// 分类选项
+const categoryOptions = ref([])
+
+// 库存调整
+const stockOpen = ref(false)
+const stockForm = ref({ dishId: undefined, currentStock: 0, delta: 0 })
+
+// 列显隐
+const columns = ref({
+  dishId:       { label: '菜品编号', visible: true },
+  image:        { label: '菜品图片', visible: true },
+  dishName:     { label: '菜品名称', visible: true },
+  categoryName: { label: '所属分类', visible: true },
+  price:        { label: '价格',     visible: true },
+  stock:        { label: '库存',     visible: true },
+  sales:        { label: '销量',     visible: true },
+  status:       { label: '状态',     visible: true },
+  description:  { label: '描述',     visible: true },
+  createTime:   { label: '创建时间', visible: false }
+})
+
+const data = reactive({
+  queryParams: {
+    pageNum: 1,
+    pageSize: 10,
+    dishName: undefined,
+    categoryId: undefined,
+    status: undefined
+  },
+  form: {},
+  rules: {
+    dishName: [
+      { required: true, message: "菜品名称不能为空", trigger: "blur" }
+    ],
+    categoryId: [
+      { required: true, message: "请选择菜品分类", trigger: "change" }
+    ],
+    price: [
+      { required: true, message: "价格不能为空", trigger: "blur" }
+    ]
+  },
+  stockRules: {
+    delta: [
+      { required: true, message: "请输入调整数量", trigger: "blur" }
+    ]
+  }
+})
+
+const { queryParams, form, rules, stockRules } = toRefs(data)
+
+/** 加载分类选项 */
+function loadCategoryOptions() {
+  optionselectCategory().then(res => {
+    categoryOptions.value = res.data || []
+  })
+}
+
+/** 查询菜品列表 */
+function getList() {
+  loading.value = true
+  listDish(queryParams.value).then(res => {
+    loading.value = false
+    dishList.value = res.rows
+    total.value = res.total
+  })
+}
+
+/** 搜索 */
+function handleQuery() {
+  queryParams.value.pageNum = 1
+  getList()
+}
+
+/** 重置搜索 */
+function resetQuery() {
+  proxy.resetForm("queryRef")
+  handleQuery()
+}
+
+/** 多选 */
+function handleSelectionChange(selection) {
+  ids.value = selection.map(item => item.dishId)
+  single.value = selection.length != 1
+  multiple.value = !selection.length
+}
+
+/** 重置表单 */
+function reset() {
+  form.value = {
+    dishId: undefined,
+    dishName: undefined,
+    categoryId: undefined,
+    price: undefined,
+    stock: 0,
+    sales: 0,
+    status: '0',
+    image: undefined,
+    description: undefined
+  }
+  proxy.resetForm("dishRef")
+}
+
+/** 新增 */
+function handleAdd() {
+  reset()
+  open.value = true
+  title.value = "添加菜品"
+}
+
+/** 修改 */
+function handleUpdate(row) {
+  reset()
+  const dishId = row.dishId || ids.value
+  getDish(dishId).then(res => {
+    form.value = res.data
+    open.value = true
+    title.value = "修改菜品"
+  })
+}
+
+/** 提交 */
+function submitForm() {
+  proxy.$refs["dishRef"].validate(valid => {
+    if (valid) {
+      if (form.value.dishId != undefined) {
+        updateDish(form.value).then(() => {
+          proxy.$modal.msgSuccess("修改成功")
+          open.value = false
+          getList()
+        })
+      } else {
+        addDish(form.value).then(() => {
+          proxy.$modal.msgSuccess("新增成功")
+          open.value = false
+          getList()
+        })
+      }
+    }
+  })
+}
+
+/** 删除 */
+function handleDelete(row) {
+  const dishIds = row.dishId || ids.value
+  proxy.$modal.confirm('是否确认删除菜品编号为 "' + dishIds + '" 的数据项？').then(() => {
+    return delDish(dishIds)
+  }).then(() => {
+    getList()
+    proxy.$modal.msgSuccess("删除成功")
+  }).catch(() => {})
+}
+
+/** 上下架 */
+function handleStatusChange(row) {
+  const text = row.status === "1" ? "上架" : "下架"
+  proxy.$modal.confirm('确认要把菜品 "' + row.dishName + '" 切换为 "' + text + '" 吗？').then(() => {
+    return changeDishStatus(row.dishId, row.status)
+  }).then(() => {
+    proxy.$modal.msgSuccess("状态切换成功")
+  }).catch(() => {
+    row.status = row.status === "1" ? "0" : "1"
+  })
+}
+
+/** 调整库存弹窗 */
+function handleStockDialog() {
+  if (ids.value.length !== 1) {
+    proxy.$modal.msgWarning("请选择一条记录")
+    return
+  }
+  const target = dishList.value.find(d => d.dishId === ids.value[0])
+  stockForm.value = {
+    dishId: ids.value[0],
+    currentStock: target ? target.stock : 0,
+    delta: 0
+  }
+  stockOpen.value = true
+}
+
+/** 提交库存调整 */
+function submitStock() {
+  proxy.$refs["stockRef"].validate(valid => {
+    if (valid) {
+      adjustDishStock(stockForm.value.dishId, stockForm.value.delta).then(() => {
+        proxy.$modal.msgSuccess("库存调整成功")
+        stockOpen.value = false
+        getList()
+      })
+    }
+  })
+}
+
+/** 取消 */
+function cancel() {
+  open.value = false
+  reset()
+}
+
+onMounted(() => {
+  loadCategoryOptions()
+  getList()
+})
+</script>

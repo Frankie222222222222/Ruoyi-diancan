@@ -1,0 +1,16 @@
+{
+  "name": "zhouhao",
+  "version": "2.0.0",
+  "description": "后厨订单云函数 - 接收订单、查询订单、更新状态",
+  "main": "index.js",
+  "dependencies": {},
+  "extensions": {
+    "uni-cloud-jql": {}
+  },
+  "cloudfunction-config": {
+    "concurrency": 10,
+    "memorySize": 256,
+    "timeout": 10,
+    "triggers": []
+  }
+}

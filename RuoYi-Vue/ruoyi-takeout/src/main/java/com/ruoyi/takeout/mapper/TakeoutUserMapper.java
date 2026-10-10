@@ -33,4 +33,11 @@ public interface TakeoutUserMapper
 
     /** 累加订单数和消费额 */
     int incrementUserStats(TakeoutUser user);
+
+    /* ========== v2 扩展(2026-10-10) ========== */
+
+    /** 修改用户角色 */
+    int changeUserRole(@org.apache.ibatis.annotations.Param("userId") Long userId,
+                       @org.apache.ibatis.annotations.Param("role") String role,
+                       @org.apache.ibatis.annotations.Param("updateBy") String updateBy);
 }

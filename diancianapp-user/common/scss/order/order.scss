@@ -1,0 +1,147 @@
+.wrap {
+	background-color: #F5F5F5;
+	min-height: 100vh;
+	width: 100%;
+
+	&__tabs {
+		position: relative;
+		z-index: 999;
+	}
+
+	&__list {
+		margin: 20rpx 20rpx 0 20rpx;
+		background-color: white;
+		border-radius: 18rpx;
+		padding: 20rpx;
+
+		&__top {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+
+			view:nth-child(1) {
+				font-size: 30rpx;
+				color: #333;
+				font-weight: bold;
+			}
+
+			view:nth-child(2) {
+				font-size: 24rpx;
+				color: $u-type-info;
+			}
+		}
+
+		&__shopinfo {
+			width: 100%;
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-end;
+			margin: 20rpx 0;
+
+			&__left {
+				display: flex;
+
+				&__image {
+					margin-right: 20rpx;
+				}
+
+				&__desc {
+					display: flex;
+					flex-direction: column;
+					justify-content: space-around;
+
+					&__shopname {
+						font-weight: bold;
+						color: #333;
+						font-size: 28rpx;
+					}
+
+					&__content {
+						font-size: 20rpx;
+						color: $u-type-info;
+						margin-top: 8rpx;
+					}
+
+					&__price {
+						display: flex;
+						align-items: baseline;
+						font-weight: bold;
+						color: #333;
+						margin-top: 20rpx;
+
+						text:nth-child(1) {
+							font-size: 20rpx;
+							margin-right: 5rpx;
+						}
+
+						text:nth-child(2) {
+							font-size: 30rpx;
+						}
+					}
+				}
+			}
+
+			&__right {
+				font-size: 24rpx;
+				color: $u-type-info;
+			}
+		}
+
+		&__prices {
+			display: flex;
+			justify-content: flex-end;
+			font-size: 24rpx;
+			color: #333333;
+			align-items: baseline;
+			margin-bottom: 20rpx;
+
+			text {
+				color: #FF362D;
+				font-weight: bold;
+			}
+
+			text:nth-child(1) {
+				font-size: 20rpx;
+				margin-right: 5rpx;
+			}
+
+			text:nth-child(2) {
+				font-size: 30rpx;
+			}
+		}
+
+		&__bottom {
+			display: flex;
+			justify-content: flex-end;
+
+			view:nth-child(1) {
+				width: 160rpx;
+				text-align: center;
+				border: 1px solid $u-type-info;
+				color: $u-type-info;
+				border-radius: 30rpx;
+				padding: 8rpx 0;
+				font-size: 24rpx;
+			}
+		}
+
+		&__couponBottom {
+			display: flex;
+			justify-content: flex-end;
+
+			view {
+				width: 160rpx;
+				text-align: center;
+				border: 1px solid $u-type-info;
+				color: $u-type-info;
+				border-radius: 30rpx;
+				padding: 8rpx 0;
+				font-size: 24rpx;
+			}
+
+			view:nth-child(1) {
+				margin-right: 20rpx;
+			}
+		}
+	}
+}

@@ -235,4 +235,82 @@ class TakeoutOrderServiceImplTest extends BaseServiceTest
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("不允许取消");
     }
+
+    // ============== v2 状态机(2026-10-10) ==============
+
+    @Test
+    @DisplayName("v2_PAID→MAKING_写后厨接单时间")
+    void v2_paidToMaking_writesKitchenAcceptTime() {
+        order.setStatus("1"); // PAID
+        when(orderMapper.selectOrderById(1001L)).thenReturn(order);
+        when(orderMapper.updateOrderStatus(any())).thenReturn(1);
+
+        int rows = service.changeOrderStatus(1001L, "2a"); // MAKING
+
+        assertThat(rows).isEqualTo(1);
+        ArgumentCaptor<TakeoutOrder> cap = ArgumentCaptor.forClass(TakeoutOrder.class);
+        verify(orderMapper).updateOrderStatus(cap.capture());
+        assertThat(cap.getValue().getStatus()).isEqualTo("2a");
+        assertThat(cap.getValue().getKitchenAcceptTime()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("v2_MAKING→READY_写出餐时间")
+    void v2_makingToReady_writesReadyTime() {
+        order.setStatus("2a");
+        when(orderMapper.selectOrderById(1001L)).thenReturn(order);
+        when(orderMapper.updateOrderStatus(any())).thenReturn(1);
+
+        int rows = service.changeOrderStatus(1001L, "2b");
+
+        assertThat(rows).isEqualTo(1);
+        ArgumentCaptor<TakeoutOrder> cap = ArgumentCaptor.forClass(TakeoutOrder.class);
+        verify(orderMapper).updateOrderStatus(cap.capture());
+        assertThat(cap.getValue().getStatus()).isEqualTo("2b");
+        assertThat(cap.getValue().getReadyTime()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("v2_READY→DELIVERING_写骑手接单时间")
+    void v2_readyToDelivering_writesRiderAcceptTime() {
+        order.setStatus("2b");
+        when(orderMapper.selectOrderById(1001L)).thenReturn(order);
+        when(orderMapper.updateOrderStatus(any())).thenReturn(1);
+
+        int rows = service.changeOrderStatus(1001L, "3");
+
+        assertThat(rows).isEqualTo(1);
+        ArgumentCaptor<TakeoutOrder> cap = ArgumentCaptor.forClass(TakeoutOrder.class);
+        verify(orderMapper).updateOrderStatus(cap.capture());
+        assertThat(cap.getValue().getStatus()).isEqualTo("3");
+        assertThat(cap.getValue().getRiderAcceptTime()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("v2_骑手抢单_非READY_拒绝")
+    void v2_riderGrab_nonReady_throws() {
+        order.setStatus("2a"); // 还制作中
+        when(orderMapper.selectOrderForRiderGrab(1001L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.riderGrabOrder(1001L, 200L))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("已被其他骑手抢走");
+    }
+
+    @Test
+    @DisplayName("v2_骑手抢单_READY_成功+写riderId+写riderAcceptTime")
+    void v2_riderGrab_ready_success() {
+        order.setStatus("2b");
+        when(orderMapper.selectOrderForRiderGrab(1001L)).thenReturn(order);
+        when(orderMapper.updateOrderStatus(any())).thenReturn(1);
+
+        int rows = service.riderGrabOrder(1001L, 200L);
+
+        assertThat(rows).isEqualTo(1);
+        ArgumentCaptor<TakeoutOrder> cap = ArgumentCaptor.forClass(TakeoutOrder.class);
+        verify(orderMapper).updateOrderStatus(cap.capture());
+        assertThat(cap.getValue().getStatus()).isEqualTo("3");
+        assertThat(cap.getValue().getRiderId()).isEqualTo(200L);
+        assertThat(cap.getValue().getRiderAcceptTime()).isNotNull();
+    }
 }

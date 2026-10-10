@@ -77,7 +77,7 @@ public class TakeoutUserController extends BaseController
         TakeoutUser user = userService.login(phone);
         // 1. 签发 JWT
         String token = tokenService.login(user);
-        // 2. 返回 userInfo
+        // 2. 返回 userInfo(v2 加 role 字段,小程序按 role 分流)
         Map<String, Object> data = new HashMap<>();
         data.put("token", token);
         Map<String, Object> userInfo = new HashMap<>();
@@ -87,6 +87,8 @@ public class TakeoutUserController extends BaseController
         userInfo.put("avatar", user.getAvatar());
         userInfo.put("gender", user.getGender());
         userInfo.put("city", user.getCity());
+        // v2:角色(默认 user,后厨 kitchen,骑手 rider,管理员 admin)
+        userInfo.put("role", user.getRole() == null ? "user" : user.getRole());
         data.put("userInfo", userInfo);
         return AjaxResult.success("登录成功", data);
     }
@@ -150,5 +152,30 @@ public class TakeoutUserController extends BaseController
     {
         userService.incrementUserStats(userId, amount);
         return success();
+    }
+
+    /* ========== v2 扩展(2026-10-10) ========== */
+
+    /**
+     * 修改用户角色(后台管理员用)
+     * @param userId 用户ID
+     * @param role   角色(user/kitchen/rider/admin)
+     */
+    @PreAuthorize("@ss.hasPermi('takeout:user:changeRole')")
+    @Log(title = "C端用户-改角色", businessType = BusinessType.UPDATE)
+    @PutMapping("/changeRole/{userId}/{role}")
+    public AjaxResult changeRole(@PathVariable Long userId, @PathVariable String role)
+    {
+        int rows = userService.changeUserRole(userId, role);
+        return rows > 0 ? success() : error();
+    }
+
+    /**
+     * 角色字典(给前端下拉用,公开)
+     */
+    @GetMapping("/roleDict")
+    public AjaxResult roleDict()
+    {
+        return success(com.ruoyi.takeout.enums.UserRoleEnum.toMap());
     }
 }

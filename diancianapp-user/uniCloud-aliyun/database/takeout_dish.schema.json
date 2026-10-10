@@ -1,0 +1,66 @@
+{
+  "bsonType": "object",
+  "required": ["name", "price"],
+  "permission": {
+    "read": true,
+    "create": "getUniCloudRoles() includes 'admin'",
+    "update": "getUniCloudRoles() includes 'admin'",
+    "delete": "getUniCloudRoles() includes 'admin'"
+  },
+  "properties": {
+    "_id": {
+      "description": "ID,系统自动生成"
+    },
+    "name": {
+      "bsonType": "string",
+      "description": "菜品名"
+    },
+    "category": {
+      "bsonType": "string",
+      "description": "分类:主菜/汤/凉菜/饮料/小吃"
+    },
+    "price": {
+      "bsonType": "double",
+      "description": "单价"
+    },
+    "image": {
+      "bsonType": "string",
+      "description": "菜品图片URL"
+    },
+    "description": {
+      "bsonType": "string",
+      "description": "描述"
+    },
+    "sales": {
+      "bsonType": "int",
+      "description": "累计销量",
+      "defaultValue": 0
+    },
+    "stock": {
+      "bsonType": "int",
+      "description": "库存,-1=无限",
+      "defaultValue": -1
+    },
+    "status": {
+      "bsonType": "string",
+      "description": "0上架 1下架",
+      "defaultValue": "0"
+    },
+    "del_flag": {
+      "bsonType": "string",
+      "description": "0存在 2删除",
+      "defaultValue": "0"
+    },
+    "create_time": {
+      "bsonType": "timestamp",
+      "description": "创建时间",
+      "forceDefaultValue": {
+        "$env": "now"
+      }
+    },
+    "update_time": {
+      "bsonType": "timestamp",
+      "description": "更新时间"
+    }
+  }
+}

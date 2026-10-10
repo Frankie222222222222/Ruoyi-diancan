@@ -1,0 +1,77 @@
+.wrap {
+	background-color: #F5F5F5;
+	min-height: 100vh;
+	width: 100%;
+
+	&__userinfo {
+		display: flex;
+		justify-content: space-between;
+		margin: 0 30rpx 30rpx 30rpx;
+		padding-top: 30rpx;
+
+		&__login {
+			view:nth-child(1) {
+				font-size: 22rpx;
+				color: #333333;
+			}
+
+			view:nth-child(2) {
+				font-size: 36rpx;
+				font-weight: bold;
+				color: #333333;
+				margin-top: 5rpx;
+				letter-spacing: 1rpx;
+			}
+		}
+	}
+
+	&__myasset {
+		background-color: white;
+		margin: 60rpx 30rpx 20rpx 30rpx;
+		border-radius: 18rpx;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 30rpx 60rpx;
+
+		&__points,
+		&__coupon {
+			width: 50%;
+
+			view:nth-child(1) {
+				color: #333333;
+				margin-bottom: 10rpx;
+			}
+
+			view:nth-child(2) {
+				display: flex;
+				align-items: baseline;
+
+				text:nth-child(1) {
+					font-size: 36rpx;
+					color: #333333;
+					font-weight: bold;
+				}
+
+				text:nth-child(2) {
+					color: $u-type-info;
+					font-size: 22rpx;
+					margin-left: 10rpx;
+				}
+			}
+		}
+
+		&__coupon {
+			padding-left: 60rpx;
+		}
+
+		&__group {
+			border-left: 1px solid $u-type-info-light;
+			height: 80rpx;
+		}
+	}
+
+	&__cell {
+		margin: 0 30rpx;
+	}
+}

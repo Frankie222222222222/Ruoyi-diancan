@@ -72,6 +72,18 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
     }
 
     @Override
+    public TakeoutOrder selectOrderByOrderNo(String orderNo)
+    {
+        TakeoutOrder order = orderMapper.selectOrderByOrderNo(orderNo);
+        if (order != null)
+        {
+            List<TakeoutOrderItem> items = orderMapper.selectOrderItemsByOrderId(order.getOrderId());
+            order.setOrderItems(items);
+        }
+        return order;
+    }
+
+    @Override
     public boolean checkOrderNoUnique(TakeoutOrder order)
     {
         if (StringUtils.isEmpty(order.getOrderNo()))
@@ -224,6 +236,21 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
         {
             upd.setCompleteTime(DateUtils.getNowDate());
         }
+        // v2 (2026-10-10): 进入 MAKING 记后厨接单时间
+        if (OrderStatusEnum.MAKING.getCode().equals(targetStatus))
+        {
+            upd.setKitchenAcceptTime(DateUtils.getNowDate());
+        }
+        // v2: 进入 READY 记出餐完毕时间
+        if (OrderStatusEnum.READY.getCode().equals(targetStatus))
+        {
+            upd.setReadyTime(DateUtils.getNowDate());
+        }
+        // v2: 进入 DELIVERING 记骑手接单时间
+        if (OrderStatusEnum.DELIVERING.getCode().equals(targetStatus))
+        {
+            upd.setRiderAcceptTime(DateUtils.getNowDate());
+        }
         // P2-A: 状态变更为"已退款(7)"时，归还库存并回退销量（与 cancelOrder 对称）
         if (OrderStatusEnum.REFUNDED.getCode().equals(targetStatus))
         {
@@ -329,5 +356,150 @@ public class TakeoutOrderServiceImpl implements ITakeoutOrderService
             return new java.util.HashMap<>();
         }
         return orderMapper.statByMerchantId(merchantId);
+    }
+
+    /* ========== v2 扩展(2026-10-10) ========== */
+
+    @Override
+    public List<TakeoutOrder> selectRiderAvailableOrders()
+    {
+        List<TakeoutOrder> list = orderMapper.selectRiderAvailableOrders();
+        if (list != null)
+        {
+            for (TakeoutOrder o : list)
+            {
+                List<TakeoutOrderItem> items = orderMapper.selectOrderItemsByOrderId(o.getOrderId());
+                o.setOrderItems(items);
+            }
+        }
+        return list;
+    }
+
+    @Override
+    public List<TakeoutOrder> selectKitchenVisibleOrders()
+    {
+        List<TakeoutOrder> list = orderMapper.selectKitchenVisibleOrders();
+        if (list != null)
+        {
+            for (TakeoutOrder o : list)
+            {
+                List<TakeoutOrderItem> items = orderMapper.selectOrderItemsByOrderId(o.getOrderId());
+                o.setOrderItems(items);
+            }
+        }
+        return list;
+    }
+
+    @Override
+    public java.util.Map<String, Object> countKitchenPending()
+    {
+        return orderMapper.countKitchenPending();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int riderGrabOrder(Long orderId, Long riderId)
+    {
+        if (orderId == null || riderId == null)
+        {
+            throw new ServiceException("[ERR_2002] 订单ID/骑手ID不能为空", 2002);
+        }
+        // 行锁 + 状态校验(SELECT ... FOR UPDATE)
+        TakeoutOrder exist = orderMapper.selectOrderForRiderGrab(orderId);
+        if (exist == null)
+        {
+            throw new ServiceException(
+                String.format("[ERR_%d] 订单不存在或已被其他骑手抢走，请刷新", 2002, orderId),
+                2002);
+        }
+        if (!OrderStatusEnum.READY.getCode().equals(exist.getStatus()))
+        {
+            throw new ServiceException(
+                String.format("[ERR_%d] 订单状态已变更(当前=%s)，无法抢单",
+                    2003, exist.getStatus()),
+                2003);
+        }
+        // 复用状态机:READY → DELIVERING
+        TakeoutOrder upd = new TakeoutOrder();
+        upd.setOrderId(orderId);
+        upd.setStatus(OrderStatusEnum.DELIVERING.getCode());
+        upd.setRiderId(riderId);
+        upd.setRiderAcceptTime(DateUtils.getNowDate());
+        upd.setUpdateBy("rider:" + riderId);
+        int rows = orderMapper.updateOrderStatus(upd);
+        if (rows > 0)
+        {
+            log.info("rider grab order: orderId={} riderId={}", orderId, riderId);
+        }
+        return rows;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int kitchenAcceptOrder(Long orderId, Long kitchenId)
+    {
+        if (orderId == null)
+        {
+            throw new ServiceException("[ERR_2002] 订单ID不能为空", 2002);
+        }
+        // 校验当前状态(PAID 或 旧值 ACCEPTED 才能转 MAKING)
+        TakeoutOrder exist = orderMapper.selectOrderById(orderId);
+        if (exist == null)
+        {
+            throw new ServiceException(String.format("[ERR_2002] 订单不存在 id=%s", orderId), 2002);
+        }
+        String target = OrderStatusEnum.MAKING.getCode();
+        if (!OrderStatusEnum.canTransition(exist.getStatus(), target))
+        {
+            throw new ServiceException(
+                String.format("[ERR_2004] 当前状态「%s」无法转为「%s」",
+                    exist.getStatus(), target),
+                2004);
+        }
+        // 直接走 changeOrderStatus 写时间戳,再 updateOrder 写 kitchenId
+        changeOrderStatus(orderId, target);
+        if (kitchenId != null)
+        {
+            TakeoutOrder upd = new TakeoutOrder();
+            upd.setOrderId(orderId);
+            upd.setKitchenId(kitchenId);
+            upd.setUpdateBy("kitchen:" + kitchenId);
+            return orderMapper.updateOrder(upd);
+        }
+        return 1;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int kitchenReadyOrder(Long orderId, Long kitchenId)
+    {
+        if (orderId == null)
+        {
+            throw new ServiceException("[ERR_2002] 订单ID不能为空", 2002);
+        }
+        TakeoutOrder exist = orderMapper.selectOrderById(orderId);
+        if (exist == null)
+        {
+            throw new ServiceException(String.format("[ERR_2002] 订单不存在 id=%s", orderId), 2002);
+        }
+        String target = OrderStatusEnum.READY.getCode();
+        if (!OrderStatusEnum.canTransition(exist.getStatus(), target))
+        {
+            throw new ServiceException(
+                String.format("[ERR_2004] 当前状态「%s」无法转为「%s」(后厨必须先接单)",
+                    exist.getStatus(), target),
+                2004);
+        }
+        changeOrderStatus(orderId, target);
+        if (kitchenId != null && exist.getKitchenId() == null)
+        {
+            // 兼容:后厨一直没声明过 kitchenId,补一下
+            TakeoutOrder upd = new TakeoutOrder();
+            upd.setOrderId(orderId);
+            upd.setKitchenId(kitchenId);
+            upd.setUpdateBy("kitchen:" + kitchenId);
+            return orderMapper.updateOrder(upd);
+        }
+        return 1;
     }
 }

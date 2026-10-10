@@ -1,0 +1,27 @@
+services:
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: ruoyi-minio
+    restart: unless-stopped
+    # server 模式：/data 为数据卷；--console-address 暴露 Web 控制台
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API（前后端图片上传/访问都走这里）
+      - "9001:9001"   # Web 控制台（可视化看桶/文件）
+    environment:
+      # 控制台登录账号（必须 ≥3 字符）
+      MINIO_ROOT_USER: ruoyi
+      # 控制台登录密码（必须 ≥8 字符）
+      MINIO_ROOT_PASSWORD: ruoyi123456
+    volumes:
+      # 数据持久化到宿主机当前目录的 minio/data
+      - ./minio/data:/data
+    healthcheck:
+      # MinIO 自带 /minio/health/live 健康端点
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    # Windows + Docker Desktop 必须设平台
+    platform: linux/amd64

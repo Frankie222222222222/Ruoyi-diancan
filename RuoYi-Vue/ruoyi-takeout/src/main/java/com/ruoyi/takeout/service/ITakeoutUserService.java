@@ -36,4 +36,14 @@ public interface ITakeoutUserService
 
     /** 累加用户订单数和消费额 */
     void incrementUserStats(Long userId, java.math.BigDecimal amount);
+
+    /* ========== v2 扩展(2026-10-10) ========== */
+
+    /**
+     * 修改用户角色
+     * @param userId 用户ID
+     * @param role   角色代码(user/kitchen/rider/admin)
+     * @return 影响的行数
+     */
+    int changeUserRole(Long userId, String role);
 }

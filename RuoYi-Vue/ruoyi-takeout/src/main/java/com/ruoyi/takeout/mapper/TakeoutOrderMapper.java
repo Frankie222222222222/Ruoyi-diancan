@@ -87,4 +87,26 @@ public interface TakeoutOrderMapper
      * 返回：菜品数 / 订单总数 / 今日订单数 / 近 30 日实付总额 / 今日实付总额
      */
     java.util.Map<String, Object> statByMerchantId(@Param("merchantId") Long merchantId);
+
+    /* ========== v2 扩展(2026-10-10) ========== */
+
+    /**
+     * 骑手可见订单(status = 2b/READY)
+     */
+    List<TakeoutOrder> selectRiderAvailableOrders();
+
+    /**
+     * 后厨可见订单(PAID + 旧值 ACCEPTED + MAKING)
+     */
+    List<TakeoutOrder> selectKitchenVisibleOrders();
+
+    /**
+     * 骑手抢单前置校验(行锁,防并发)
+     */
+    TakeoutOrder selectOrderForRiderGrab(@Param("orderId") Long orderId);
+
+    /**
+     * 后厨看板统计
+     */
+    java.util.Map<String, Object> countKitchenPending();
 }

@@ -157,6 +157,16 @@ xss:
   # 匹配链接
   urlPatterns: /system/*,/monitor/*,/tool/*
 
+# ==================== uniCloud → SpringBoot 桥接(v2 - 2026-10-10) ====================
+# 阿里云 uniCloud 函数调本服务时,带以下共享密钥;并校验调用方 IP(阿里云函数有固定出口 IP 段)
+unicloud:
+  # 共享密钥(在 zhouhao 云对象里也得配,保持一致)
+  internal-secret: takeout-internal-secret-dev
+  # IP 白名单(逗号分隔,留空则不校验,只校验密钥)
+  # 阿里云函数计算出口 IP 段(示例): 47.96.0.0/16, 47.110.0.0/16, 47.74.0.0/16
+  # 实际生产请去 https://help.aliyun.com/document_detail/179380.html 拿最新段
+  ip-whitelist:
+
 # MinIO 对象存储配置
 minio:
   # S3 API 地址（容器对外暴露的端口）

@@ -1,0 +1,163 @@
+﻿<template>
+  <div class="app-container">
+    <!-- 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷?-->
+    <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="90px">
+      <el-form-item label="閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹" prop="categoryName">
+        <el-input v-model="queryParams.categoryName" placeholder="閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿? clearable style="width: 200px" @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="鐘舵€? prop="status">
+        <el-select v-model="queryParams.status" placeholder="鐘舵€? clearable style="width: 160px">
+          <el-option label="閿熸枻鎷烽敓鏂ゆ嫹" value="1" />
+          <el-option label="鍋滈敓鏂ゆ嫹" value="0" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" icon="Search" @click="handleQuery">閿熸枻鎷烽敓鏂ゆ嫹</el-button>
+        <el-button icon="Refresh" @click="resetQuery">閿熸枻鎷烽敓鏂ゆ嫹</el-button>
+      </el-form-item>
+    </el-form>
+
+    <!-- 閿熸枻鎷烽敓绔府鎷烽挳 -->
+    <el-row :gutter="10" class="mb8">
+      <el-col :span="1.5">
+        <el-button type="primary" plain icon="Plus" v-hasPermi="['takeout:dishCategory:add']" @click="handleAdd">閿熸枻鎷烽敓鏂ゆ嫹</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button type="danger" plain icon="Delete" :disabled="multiple" v-hasPermi="['takeout:dishCategory:remove']" @click="handleDelete">鍒犻敓鏂ゆ嫹</el-button>
+      </el-col>
+      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
+    </el-row>
+
+    <!-- 閿熸枻鎷烽敓鏂ゆ嫹 -->
+    <el-table v-loading="loading" :data="dataList" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" align="center" />
+      <el-table-column label="閿熸枻鎷烽敓? prop="categoryId" width="80" />
+      <el-table-column label="閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹" prop="categoryName" />
+      <el-table-column label="閿熸枻鎷烽敓鏂ゆ嫹" prop="sortOrder" width="80" align="center" />
+      <el-table-column label="鐘舵€? width="100" align="center">
+        <template #default="scope">
+          <dict-tag :options="dish_status" :value="scope.row.status" />
+        </template>
+      </el-table-column>
+      <el-table-column label="閿熸枻鎷烽敓鏂ゆ嫹鏃堕敓鏂ゆ嫹" prop="createTime" width="170" />
+      <el-table-column label="閿熸枻鎷烽敓鏂ゆ嫹" width="180" align="center">
+        <template #default="scope">
+          <el-button link type="primary" v-hasPermi="['takeout:dishCategory:edit']" @click="handleUpdate(scope.row)">閿熺潾闈╂嫹</el-button>
+          <el-button link type="primary" v-hasPermi="['takeout:dishCategory:remove']" @click="handleDelete(scope.row)">鍒犻敓鏂ゆ嫹</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <pagination v-show="total" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
+
+    <!-- 閿熸枻鎷烽敓鏂ゆ嫹/閿熺潾闈╂嫹 閿熸枻鎷烽敓鏂ゆ嫹 -->
+    <el-dialog :title="title" v-model="open" width="500px" append-to-body>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+        <el-form-item label="閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹" prop="categoryName">
+          <el-input v-model="form.categoryName" placeholder="閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿? />
+        </el-form-item>
+        <el-form-item label="閿熸枻鎷烽敓鏂ゆ嫹" prop="sortOrder">
+          <el-input-number v-model="form.sortOrder" :min="0" controls-position="right" />
+        </el-form-item>
+        <el-form-item label="鐘舵€?>
+          <el-radio-group v-model="form.status">
+            <el-radio value="1">閿熸枻鎷烽敓鏂ゆ嫹</el-radio>
+            <el-radio value="0">鍋滈敓鏂ゆ嫹</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="閿熸枻鎷锋敞" prop="remark">
+          <el-input v-model="form.remark" type="textarea" placeholder="閿熸枻鎷烽敓鏂ゆ嫹閿熻澶囨敞" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button type="primary" @click="submitForm">纭?閿熸枻鎷?/el-button>
+        <el-button @click="cancel">鍙?閿熸枻鎷?/el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup name="DishCategory">
+import { ref, reactive, getCurrentInstance } from 'vue'
+import { listDishCategory, addDishCategory, updateDishCategory, delDishCategory } from '@/api/takeout/dishCategory'
+
+const { proxy } = getCurrentInstance()
+const { dish_status } = proxy.useDict('dish_status')
+
+const dataList = ref([])
+const open = ref(false)
+const loading = ref(true)
+const showSearch = ref(true)
+const multiple = ref(true)
+const total = ref(0)
+const title = ref('')
+
+const data = reactive({
+  form: {},
+  queryParams: {
+    pageNum: 1,
+    pageSize: 10,
+    categoryName: undefined,
+    status: undefined
+  },
+  rules: {
+    categoryName: [{ required: true, message: '閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鐙¤鎷烽敓鏂ゆ嫹涓洪敓鏂ゆ嫹', trigger: 'blur' }]
+  }
+})
+
+const { queryParams, form, rules } = data
+const ids = ref([])
+const single = ref(false)
+
+function getList() {
+  loading.value = true
+  listDishCategory(queryParams).then(res => {
+    dataList.value = res.rows
+    total.value = res.total
+    loading.value = false
+  })
+}
+
+function handleQuery() { queryParams.pageNum = 1; getList() }
+function resetQuery() {
+  proxy.resetForm('queryRef')
+  handleQuery()
+}
+
+function handleSelectionChange(sel) {
+  ids.value = sel.map(item => item.categoryId)
+  multiple.value = sel.length === 0
+  single.value = sel.length !== 1
+}
+
+function handleAdd() {
+  reset()
+  open.value = true
+  title.value = '閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰搧閿熸枻鎷烽敓鏂ゆ嫹'
+}
+function handleUpdate(row) {
+  reset()
+  form.value = { ...row }
+  open.value = true
+  title.value = '閿熺潾鏀硅鎷峰搧閿熸枻鎷烽敓鏂ゆ嫹'
+}
+function submitForm() {
+  proxy.$refs['formRef'].validate(valid => {
+    if (!valid) return
+    if (form.value.categoryId != null) {
+      updateDishCategory(form.value).then(() => { proxy.$modal.msgSuccess('閿熺潾鏀规垚鐧告嫹'); open.value = false; getList() })
+    } else {
+      addDishCategory(form.value).then(() => { proxy.$modal.msgSuccess('閿熸枻鎷烽敓鏂ゆ嫹閿熺即鐧告嫹'); open.value = false; getList() })
+    }
+  })
+}
+function cancel() { open.value = false; reset() }
+function reset() { form.value = { categoryId: null, categoryName: '', sortOrder: 0, status: '1', remark: '' }; proxy.resetForm('formRef') }
+
+function handleDelete(row) {
+  const toIds = row?.categoryId ? [row.categoryId] : ids.value
+  proxy.$modal.confirm(`纭敓鏂ゆ嫹鍒犻敓鏂ゆ嫹閿熸枻鎷烽敓杞款亷鎷烽敓?{toIds.join(',')}閿熸枻鎷烽敓渚ヨ鎷峰搧閿熸枻鎷烽敓娲侊紵`).then(() => delDishCategory(toIds)).then(() => { getList(); proxy.$modal.msgSuccess('鍒犻敓鏂ゆ嫹閿熺即鐧告嫹') }).catch(() => {})
+}
+
+getList()
+</script>

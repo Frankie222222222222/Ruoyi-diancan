@@ -63,6 +63,22 @@ public class TakeoutUser extends BaseEntity
     /** 删除标志(0存在 2删除) */
     private String delFlag;
 
+    /* ========== v2 扩展(2026-10-10)角色字段 ========== */
+
+    /**
+     * 角色
+     * <ul>
+     *   <li>user    - 顾客(默认)</li>
+     *   <li>kitchen - 后厨</li>
+     *   <li>rider   - 骑手</li>
+     *   <li>admin   - 管理员(走 RuoYi 系统用户,本表只做关联冗余)</li>
+     * </ul>
+     */
+    @Excel(name = "角色", readConverterExp = "user=顾客,kitchen=后厨,rider=骑手,admin=管理员")
+    private String role;
+
+    /* ========== /v2 ========== */
+
     public Long getUserId()
     {
         return userId;
@@ -185,6 +201,20 @@ public class TakeoutUser extends BaseEntity
         this.delFlag = delFlag;
     }
 
+    /* ========== v2 角色 getter/setter ========== */
+
+    public String getRole()
+    {
+        return role;
+    }
+
+    public void setRole(String role)
+    {
+        this.role = role;
+    }
+
+    /* ========== /v2 ========== */
+
     @Override
     public String toString()
     {
@@ -193,6 +223,7 @@ public class TakeoutUser extends BaseEntity
                 ", nickname='" + nickname + '\'' +
                 ", phone='" + phone + '\'' +
                 ", status='" + status + '\'' +
+                ", role='" + role + '\'' +
                 '}';
     }
 }

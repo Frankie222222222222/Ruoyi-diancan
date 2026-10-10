@@ -1,0 +1,187 @@
+﻿<template>
+  <div class="app-container">
+    <!-- 闁跨喐鏋婚幏鐑芥晸閺傘倖瀚?-->
+    <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="90px">
+      <el-form-item label="闁跨喐鏋婚幏宄版惂闁跨喐鏋婚幏鐑芥晸閺傘倖瀚? prop="dishName">
+        <el-input v-model="queryParams.dishName" placeholder="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚归柨鐔告灮閹风兘鏁撻悪鈥冲殩閹风兘鏁撻弬銈嗗闁? clearable style="width: 200px" @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚? prop="categoryId">
+        <el-select v-model="queryParams.categoryId" placeholder="闁跨喐鏋婚幏鐑解偓澶愭晸閺傘倖瀚归柨鐔告灮閹风兘鏁? clearable style="width: 200px">
+          <el-option v-for="c in categoryOptions" :key="c.categoryId" :label="c.categoryName" :value="c.categoryId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="閻樿埖鈧? prop="status">
+        <el-select v-model="queryParams.status" placeholder="閻樿埖鈧? clearable style="width: 160px">
+          <el-option label="闁跨喕绶濈涵閿嬪" value="1" />
+          <el-option label="闁跨喖鎽涵閿嬪" value="0" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" icon="Search" @click="handleQuery">闁跨喐鏋婚幏鐑芥晸閺傘倖瀚?/el-button>
+        <el-button icon="Refresh" @click="resetQuery">闁跨喐鏋婚幏鐑芥晸閺傘倖瀚?/el-button>
+      </el-form-item>
+    </el-form>
+
+    <!-- 闁跨喐鏋婚幏鐑芥晸缁旑厼搴滈幏鐑芥尦 -->
+    <el-row :gutter="10" class="mb8">
+      <el-col :span="1.5">
+        <el-button type="primary" plain icon="Plus" v-hasPermi="['takeout:dish:add']" @click="handleAdd">闁跨喐鏋婚幏鐑芥晸閺傘倖瀚?/el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button type="danger" plain icon="Delete" :disabled="multiple" v-hasPermi="['takeout:dish:remove']" @click="handleDelete">閸掔娀鏁撻弬銈嗗</el-button>
+      </el-col>
+      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
+    </el-row>
+
+    <!-- 闁跨喐鏋婚幏鐑芥晸閺傘倖瀚?-->
+    <el-table v-loading="loading" :data="dataList" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" align="center" />
+      <el-table-column label="闁跨喐鏋婚幏鐑芥晸? prop="dishId" width="80" />
+      <el-table-column label="闁跨喐鏋婚幏宄版惂闁跨喐鏋婚幏鐑芥晸閺傘倖瀚? prop="dishName" />
+      <el-table-column label="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚? prop="categoryName" width="120" />
+      <el-table-column label="閸ュ墽澧? width="80" align="center">
+        <template #default="scope">
+          <el-image v-if="scope.row.image" :src="scope.row.image" fit="cover" style="width:50px;height:50px;border-radius:4px" />
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="闁跨喐顢欓棃鈺傚" prop="price" width="80" align="right">
+        <template #default="scope">? {{ scope.row.price }}</template>
+      </el-table-column>
+      <el-table-column label="闁跨喐鏋婚幏鐑芥晸? prop="stock" width="80" align="center" />
+      <el-table-column label="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚? prop="sales" width="80" align="center" />
+      <el-table-column label="閻樿埖鈧? width="80" align="center">
+        <template #default="scope">
+          <el-switch v-model="scope.row.status" active-value="1" inactive-value="0" @change="(val) => handleStatusChange(scope.row, val)" />
+        </template>
+      </el-table-column>
+      <el-table-column label="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚归弮鍫曟晸閺傘倖瀚? prop="createTime" width="170" />
+      <el-table-column label="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚? width="180" align="center">
+        <template #default="scope">
+          <el-button link type="primary" v-hasPermi="['takeout:dish:edit']" @click="handleUpdate(scope.row)">闁跨喓娼鹃棃鈺傚</el-button>
+          <el-button link type="primary" v-hasPermi="['takeout:dish:remove']" @click="handleDelete(scope.row)">閸掔娀鏁撻弬銈嗗</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <pagination v-show="total" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
+
+    <!-- 闁跨喐鏋婚幏鐑芥晸閺傘倖瀚?闁跨喓娼鹃棃鈺傚 闁跨喐鏋婚幏鐑芥晸閺傘倖瀚?-->
+    <el-dialog :title="title" v-model="open" width="560px" append-to-body>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+        <el-form-item label="闁跨喐鏋婚幏宄版惂闁跨喐鏋婚幏鐑芥晸閺傘倖瀚? prop="dishName">
+          <el-input v-model="form.dishName" placeholder="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚归柨鐔告灮閹风兘鏁撻悪鈥冲殩閹风兘鏁撻弬銈嗗闁? />
+        </el-form-item>
+        <el-form-item label="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚归柨鐔告灮閹风兘鏁撻弬銈嗗" prop="categoryId">
+          <el-select v-model="form.categoryId" placeholder="闁跨喐鏋婚幏鐑解偓澶愭晸閺傘倖瀚归柨鐔告灮閹风兘鏁? style="width: 100%">
+            <el-option v-for="c in categoryOptions" :key="c.categoryId" :label="c.categoryName" :value="c.categoryId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="闁跨喐鏋婚幏宄版惂閸ュ墽澧? prop="image">
+          <image-upload v-model="form.image" :fileType="['png','jpg','jpeg']" :fileSize="20" />
+        </el-form-item>
+        <el-form-item label="闁跨喐顢欓棃鈺傚" prop="price">
+          <el-input-number v-model="form.price" :min="0" :precision="2" :step="1" controls-position="right" style="width: 160px" />
+          <span style="margin-left:8px;color:#909399">閸?/span>
+        </el-form-item>
+        <el-form-item label="闁跨喐鏋婚幏鐑芥晸? prop="stock">
+          <el-input-number v-model="form.stock" :min="0" controls-position="right" style="width: 160px" />
+        </el-form-item>
+        <el-form-item label="閻樿埖鈧?>
+          <el-radio-group v-model="form.status">
+            <el-radio value="1">闁跨喕绶濈涵閿嬪</el-radio>
+            <el-radio value="0">闁跨喖鎽涵閿嬪</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚? prop="description">
+          <el-input v-model="form.description" type="textarea" :rows="2" placeholder="闁跨喐鏋婚幏鐑芥晸閺傘倖瀚归柨鐔告灮閹风兘鏁撻弬銈嗗闁跨喐鏋婚幏? />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button type="primary" @click="submitForm">绾?闁跨喐鏋婚幏?/el-button>
+        <el-button @click="cancel">閸?闁跨喐鏋婚幏?/el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup name="Dish">
+import { ref, reactive, getCurrentInstance, onMounted } from 'vue'
+import { listDish, addDish, updateDish, delDish, changeDishStatus } from '@/api/takeout/dish'
+import { optionselect as listCategoryOptions } from '@/api/takeout/dishCategory'
+
+const { proxy } = getCurrentInstance()
+
+const dataList = ref([])
+const categoryOptions = ref([])
+const open = ref(false)
+const loading = ref(true)
+const showSearch = ref(true)
+const total = ref(0)
+const multiple = ref(true)
+const title = ref('')
+const ids = ref([])
+const single = ref(false)
+
+const data = reactive({
+  form: {},
+  queryParams: { pageNum: 1, pageSize: 10, dishName: undefined, categoryId: undefined, status: undefined },
+  rules: {
+    dishName: [{ required: true, message: '闁跨喐鏋婚幏宄版惂闁跨喐鏋婚幏鐑芥晸閻櫬ゎ嚋閹风兘鏁撻弬銈嗗娑撴椽鏁撻弬銈嗗', trigger: 'blur' }],
+    categoryId: [{ required: true, message: '闁跨喐鏋婚幏鐑解偓澶愭晸閺傘倖瀚归柨鐔告灮閹风兘鏁?, trigger: 'change' }],
+    price: [{ required: true, message: '闁跨喐鏋婚幏鐑芥晸閺傘倖瀚归柨鐔告灮閹风兘鍔伴柨?, trigger: 'blur' }],
+    stock: [{ required: true, message: '闁跨喐鏋婚幏鐑芥晸閺傘倖瀚归柨鐔告灮閹风兘鏁撻弬銈嗗', trigger: 'blur' }]
+  }
+})
+const { queryParams, form, rules } = data
+
+function getList() {
+  loading.value = true
+  listDish(queryParams).then(res => { dataList.value = res.rows; total.value = res.total; loading.value = false })
+}
+function getCategoryOptions() {
+  listCategoryOptions().then(res => { categoryOptions.value = res.data || [] })
+}
+
+function handleQuery() { queryParams.pageNum = 1; getList() }
+function resetQuery() { proxy.resetForm('queryRef'); handleQuery() }
+
+function handleSelectionChange(sel) {
+  ids.value = sel.map(i => i.dishId)
+  multiple.value = sel.length === 0
+  single.value = sel.length !== 1
+}
+
+function handleAdd() { reset(); open.value = true; title.value = '闁跨喐鏋婚幏鐑芥晸閺傘倖瀚归柨鐔告灮閹峰嘲鎼? }
+function handleUpdate(row) { reset(); form.value = { ...row }; open.value = true; title.value = '闁跨喓娼鹃弨纭咁嚋閹峰嘲鎼? }
+function submitForm() {
+  proxy.$refs['formRef'].validate(valid => {
+    if (!valid) return
+    if (form.value.dishId != null) {
+      updateDish(form.value).then(() => { proxy.$modal.msgSuccess('闁跨喓娼鹃弨瑙勫灇閻у憡瀚?); open.value = false; getList() })
+    } else {
+      addDish(form.value).then(() => { proxy.$modal.msgSuccess('闁跨喐鏋婚幏鐑芥晸閺傘倖瀚归柨鐔哄嵆閻у憡瀚?); open.value = false; getList() })
+    }
+  })
+}
+function cancel() { open.value = false; reset() }
+function reset() {
+  form.value = { dishId: null, dishName: '', categoryId: undefined, image: '', price: 0, stock: 0, status: '1', description: '' }
+  proxy.resetForm('formRef')
+}
+
+function handleStatusChange(row, val) {
+  const text = val === '1' ? '闁跨喕绶濈涵閿嬪' : '闁跨喖鎽涵閿嬪'
+  proxy.$modal.confirm(`绾噣鏁撴潏鍐╂灮閹风兘鏁撻弬銈嗗閸濅線鏁撻弬銈嗗${row.dishName}闁跨喐鏋婚幏?{text}闁跨喐鏋婚幏绌?.then(() => changeDishStatus(row.dishId, val))
+    .then(() => { proxy.$modal.msgSuccess(`${text}闁跨喓鍗抽惂鍛婂`); getList() })
+    .catch(() => { row.status = val === '1' ? '0' : '1' })
+}
+
+function handleDelete(row) {
+  const toIds = row?.dishId ? [row.dishId] : ids.value
+  proxy.$modal.confirm(`绾噣鏁撻弬銈嗗閸掔娀鏁撻弬銈嗗闁跨喐鏋婚幏鐑芥晸鏉炴浜烽幏鐑芥晸?{toIds.join(',')}闁跨喐鏋婚幏鐑芥晸娓氥儴顕滈幏宄版惂闁跨喐鏋婚幏绌?.then(() => delDish(toIds))
+    .then(() => { getList(); proxy.$modal.msgSuccess('閸掔娀鏁撻弬銈嗗闁跨喓鍗抽惂鍛婂') }).catch(() => {})
+}
+
+onMounted(() => { getList(); getCategoryOptions() })
+</script>

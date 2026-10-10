@@ -106,6 +106,28 @@ public class TakeoutOrder extends BaseEntity
     /** 删除标志（0正常 2删除） */
     private String delFlag;
 
+    /* ========== v2 扩展字段（2026-10-10）后厨/出餐/骑手时间戳 + 外键 ========== */
+
+    /** 后厨ID（哪个后厨接单，takeout_kitchen.id，外键） */
+    private Long kitchenId;
+
+    /** 后厨接单时间（PAID → MAKING 时刻） */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date kitchenAcceptTime;
+
+    /** 出餐完毕时间（MAKING → READY 时刻） */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date readyTime;
+
+    /** 骑手ID（哪个骑手接单，takeout_rider.id，外键） */
+    private Long riderId;
+
+    /** 骑手接单时间（READY → DELIVERING 时刻） */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date riderAcceptTime;
+
+    /* ========== /v2 ========== */
+
     /** 子表：订单商品列表（详情用） */
     private List<TakeoutOrderItem> orderItems;
 
@@ -342,6 +364,60 @@ public class TakeoutOrder extends BaseEntity
         this.orderItems = orderItems;
     }
 
+    /* ========== v2 新增字段 getter/setter ========== */
+
+    public Long getKitchenId()
+    {
+        return kitchenId;
+    }
+
+    public void setKitchenId(Long kitchenId)
+    {
+        this.kitchenId = kitchenId;
+    }
+
+    public Date getKitchenAcceptTime()
+    {
+        return kitchenAcceptTime;
+    }
+
+    public void setKitchenAcceptTime(Date kitchenAcceptTime)
+    {
+        this.kitchenAcceptTime = kitchenAcceptTime;
+    }
+
+    public Date getReadyTime()
+    {
+        return readyTime;
+    }
+
+    public void setReadyTime(Date readyTime)
+    {
+        this.readyTime = readyTime;
+    }
+
+    public Long getRiderId()
+    {
+        return riderId;
+    }
+
+    public void setRiderId(Long riderId)
+    {
+        this.riderId = riderId;
+    }
+
+    public Date getRiderAcceptTime()
+    {
+        return riderAcceptTime;
+    }
+
+    public void setRiderAcceptTime(Date riderAcceptTime)
+    {
+        this.riderAcceptTime = riderAcceptTime;
+    }
+
+    /* ========== /v2 ========== */
+
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Override
     public Date getCreateTime()
@@ -382,6 +458,11 @@ public class TakeoutOrder extends BaseEntity
                 .append("completeTime", getCompleteTime())
                 .append("cancelReason", getCancelReason())
                 .append("delFlag", getDelFlag())
+                .append("kitchenId", getKitchenId())
+                .append("kitchenAcceptTime", getKitchenAcceptTime())
+                .append("readyTime", getReadyTime())
+                .append("riderId", getRiderId())
+                .append("riderAcceptTime", getRiderAcceptTime())
                 .append("createBy", getCreateBy())
                 .append("createTime", getCreateTime())
                 .append("updateBy", getUpdateBy())

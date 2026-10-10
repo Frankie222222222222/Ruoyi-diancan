@@ -9,11 +9,13 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.takeout.domain.TakeoutOrder;
 import com.ruoyi.takeout.domain.TakeoutRider;
+import com.ruoyi.takeout.service.ITakeoutOrderService;
 import com.ruoyi.takeout.service.ITakeoutRiderService;
 
 /**
- * 骑手 Controller
+ * 骑手 Controller（v2 - 2026-10-10 加抢单台接口）
  *
  * @author ruoyi
  */
@@ -23,6 +25,9 @@ public class TakeoutRiderController extends BaseController
 {
     @Autowired
     private ITakeoutRiderService riderService;
+
+    @Autowired
+    private ITakeoutOrderService orderService;
 
     /** 分页查询 */
     @PreAuthorize("@ss.hasPermi('takeout:rider:list')")
@@ -84,5 +89,40 @@ public class TakeoutRiderController extends BaseController
     {
         List<TakeoutRider> list = riderService.selectAvailableRiders(city);
         return success(list);
+    }
+
+    /* ========== v2 扩展(2026-10-10) 骑手抢单台 ========== */
+
+    /**
+     * 骑手抢单台:可抢订单列表(status = 2b/READY,按 ready_time 升序)
+     */
+    @PreAuthorize("@ss.hasPermi('takeout:rider:grabList')")
+    @GetMapping("/availableOrders")
+    public TableDataInfo availableOrders()
+    {
+        startPage();
+        return getDataTable(orderService.selectRiderAvailableOrders());
+    }
+
+    /**
+     * 骑手抢单(原子操作,行锁防并发)
+     * @param orderId 订单ID
+     * @param riderId 骑手ID
+     */
+    @PreAuthorize("@ss.hasPermi('takeout:rider:grab')")
+    @Log(title = "骑手抢单", businessType = BusinessType.UPDATE)
+    @PutMapping("/grab/{orderId}")
+    public AjaxResult grab(@PathVariable("orderId") Long orderId,
+                           @RequestParam("riderId") Long riderId)
+    {
+        try
+        {
+            int rows = orderService.riderGrabOrder(orderId, riderId);
+            return rows > 0 ? success() : error("抢单失败");
+        }
+        catch (com.ruoyi.common.exception.ServiceException e)
+        {
+            return error(e.getMessage());
+        }
     }
 }

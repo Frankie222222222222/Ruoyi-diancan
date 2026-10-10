@@ -1,0 +1,104 @@
+.wrap {
+	width: 100%;
+	min-height: 100vh;
+	background-color: #FAFAFA;
+
+	// 用户信息
+	&__userinfo {
+		background-color: white;
+		border-radius: 18rpx;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		width: 90%;
+		margin: -25rpx auto 0 auto;
+		position: relative;
+		z-index: 1;
+		padding: 20rpx;
+
+		&__left {
+			display: flex;
+			align-items: center;
+
+			&__nickname {
+				color: #333333;
+				font-weight: bold;
+				font-size: 24rpx;
+				margin-left: 10rpx;
+			}
+		}
+
+		&__right {
+			background-color: #0A3D28;
+			color: white;
+			border-radius: 50rpx;
+			padding: 10rpx 30rpx;
+			font-size: 22rpx;
+		}
+	}
+
+
+	// 菜单管理
+	&__menu {
+		display: flex;
+		align-items: center;
+		width: 90%;
+		margin: 30rpx auto 0 auto;
+		background-color: white;
+		border-radius: 18rpx;
+		padding: 10rpx 0 30rpx 0;
+
+		&__box {
+			width: 50%;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+
+			&__name {
+				font-size: 38rpx;
+				color: #333333;
+				font-weight: bold;
+			}
+
+			&__desc {
+				font-size: 24rpx;
+				color: $u-type-info;
+			}
+		}
+
+		// 间隔槽
+		&__group {
+			border-left: 1px solid $u-type-info-light;
+			height: 100rpx;
+		}
+	}
+
+	// 我的推广
+	&__pointsmall {
+		display: flex;
+		background-color: white;
+		border-radius: 18rpx;
+		width: 90%;
+		margin: 30rpx auto;
+		align-items: flex-end;
+		padding-right: 30rpx;
+
+		&__mypoint {
+			font-size: 32rpx;
+			color: #333333;
+			font-weight: bold;
+			margin-bottom: 20rpx;
+		}
+
+		&__pointdesc {
+			font-size: 24rpx;
+			color: $u-type-info;
+			margin-bottom: 25rpx;
+		}
+	}
+
+	// 底部轮播图
+	// &__swiperbottom {
+	// 	margin: 0 30rpx;
+	// }
+}

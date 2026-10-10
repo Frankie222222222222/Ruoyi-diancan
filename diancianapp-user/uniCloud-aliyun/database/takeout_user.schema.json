@@ -1,0 +1,92 @@
+{
+  "bsonType": "object",
+  "required": ["phone"],
+  "permission": {
+    "read": true,
+    "create": "auth.uid == doc._id",
+    "update": "auth.uid == doc._id",
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "ID,系统自动生成"
+    },
+    "phone": {
+      "bsonType": "string",
+      "description": "手机号(11位)",
+      "forceDefaultValue": {
+        "$env": "uid"
+      }
+    },
+    "nickname": {
+      "bsonType": "string",
+      "description": "昵称",
+      "defaultValue": "用户"
+    },
+    "avatar": {
+      "bsonType": "string",
+      "description": "头像URL"
+    },
+    "gender": {
+      "bsonType": "string",
+      "description": "性别 0未知 1男 2女",
+      "defaultValue": "0"
+    },
+    "city": {
+      "bsonType": "string",
+      "description": "所在城市"
+    },
+    "total_orders": {
+      "bsonType": "int",
+      "description": "累计订单数",
+      "defaultValue": 0
+    },
+    "total_spend": {
+      "bsonType": "double",
+      "description": "累计消费",
+      "defaultValue": 0
+    },
+    "reg_time": {
+      "bsonType": "timestamp",
+      "description": "注册时间",
+      "forceDefaultValue": {
+        "$env": "now"
+      }
+    },
+    "last_login_time": {
+      "bsonType": "timestamp",
+      "description": "最后登录时间"
+    },
+    "status": {
+      "bsonType": "string",
+      "description": "0正常 1禁用",
+      "defaultValue": "0"
+    },
+    "del_flag": {
+      "bsonType": "string",
+      "description": "0存在 2删除",
+      "defaultValue": "0"
+    },
+    "role": {
+      "bsonType": "string",
+      "description": "v2:角色 user=顾客 kitchen=后厨 rider=骑手 admin=管理员",
+      "defaultValue": "user"
+    },
+    "last_lat": {
+      "bsonType": "double",
+      "description": "骑手最后纬度"
+    },
+    "last_lng": {
+      "bsonType": "double",
+      "description": "骑手最后经度"
+    },
+    "last_location_address": {
+      "bsonType": "string",
+      "description": "骑手最后位置文字"
+    },
+    "last_location_time": {
+      "bsonType": "timestamp",
+      "description": "骑手最后位置上报时间"
+    }
+  }
+}

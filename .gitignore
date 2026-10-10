@@ -1,97 +1,82 @@
-# ==================================================
-# Ruoyi-diancan 根目录 .gitignore
-# ==================================================
+# ============== UniApp / 小程序 ==============
+diancianapp-user/unpackage/
+diancianapp-user/dist/
+diancianapp-user/node_modules/
+diancianapp-user/.hbuilderx/
 
-# ===== 后端 Java 产物 (Maven / Gradle) — 所有子目录 =====
-**/target/
-**/build/
-**/.gradle/
-**/.mvn/
-**/mvnw
-**/mvnw.cmd
-**/*.iml
-**/*.class
-**/*.jar
-**/*.war
+# 第三方 uni_modules(体积大,在 HBuilderX 里直接装回来)
+diancianapp-user/uni_modules/vk-uview-ui/
+diancianapp-user/uni_modules/hbxw-timepicker/
+diancianapp-user/uni_modules/uni-icons/
+diancianapp-user/uni_modules/uni-scss/
+diancianapp-user/uni_modules/uni-ui/
+diancianapp-user/uni_modules/uview-ui/
 
-# ===== 前端 Node 产物 — 所有子目录 =====
-**/node_modules/
-**/dist/
-**/.vite/
-**/.cache/
-**/*.local
-**/*.map
-**/package-lock.json
-**/yarn.lock
-**/pnpm-lock.yaml
+# 图片资源(太大,在小程序里本地引用,不入库)
+diancianapp-user/static/img/home/*.jpg
+diancianapp-user/static/img/home/*.png
+diancianapp-user/static/img/menu/*.jpg
+diancianapp-user/static/img/my/*.png
+diancianapp-user/static/img/order/*.jpg
+diancianapp-user/static/logo.jpg
 
-# ===== IDE / 编辑器 =====
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
+# uniCloud 云函数运行时产生的临时文件
+diancianapp-user/uniCloud-aliyun/cloudfunctions/common/
+diancianapp-user/uniCloud-aliyun/cloudfunctions/.config/
+diancianapp-user/uniCloud-aliyun/cloudfunctions/*/node_modules/
 
-# ===== 日志 / 临时文件 =====
+# ============== Java / Maven ==============
+RuoYi-Vue/**/target/
+RuoYi-Vue/**/build/
+RuoYi-Vue/**/*.class
+RuoYi-Vue/**/*.jar
+RuoYi-Vue/**/*.war
+RuoYi-Vue/.mvn/
+RuoYi-Vue/mvnw
+RuoYi-Vue/mvnw.cmd
+
+# ============== Logs ==============
 *.log
 logs/
+*.pid
+*.seed
+*.pid.lock
+
+# ============== OS ==============
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ============== IDE ==============
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.fleet/
+.cursor/
+
+# ============== Misc ==============
 *.tmp
 *.bak
+*.swp
+*.swo
+*.orig
 
-# ===== 系统 / 环境文件 =====
-.env
-.env.local
-.env.*.local
-
-# ===== 敏感信息 (数据库密码、token 等) =**
-**/application-*.yml
-!**/application.yml
-!**/application-druid.yml
-**/secrets.properties
-**/*.pem
-**/*.key
-**/keystore/
-
-# ===== 数据库文件 =====
-*.db
-*.sqlite
-*.sqlite3
-
-# ===== 编译缓存 =====
-**/__pycache__/
-**/.pytest_cache/
-**/bin/
-**/out/
-**/logs/
-
-# ===== 临时调试草稿（GBK 编码转换、SQL 抓取等） =====
-*RuoYi-Vue3-dish*.txt
-*RuoYi-Vue3-category*.txt
-*category-raw.txt
-*category-read.txt
-*convert-gbk-utf8.ps1
-*convert-to-utf8-bom.ps1
-*dish-*.txt
-*final-dish.txt
-*final-merchant.txt
-*gbk2utf8.ps1
-*fix-menu-name.sql
-*docker-compose.yml
-index.vue-gbk2utf8.txt
-merchant-read.txt
-sql-gbk.txt
-sql/
-report.txt
-test-read.txt
+# ============== Temp / Dump / Logs ==============
 tmp-*.txt
-startup*.log.err
-startup*.err
+test-read.txt
+sql-gbk.txt
+dish-read.txt
+merchant-read.txt
+RuoYi-Vue3-*.txt
+index.vue-gbk2utf8.txt
+startup-test.err
 startup-test.log.err
-strip-bom.ps1
-start-ruoyi-with-redis.ps1
-start-ruoyi.bat
+startup-step1.log.err
 run-ruoyi.cmd
-minio/
-weixin/
+start-ruoyi.bat
+start-ruoyi-with-redis.ps1
+strip-bom.ps1
+logs/

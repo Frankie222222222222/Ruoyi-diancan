@@ -1,0 +1,128 @@
+{
+  "bsonType": "object",
+  "required": ["order_no", "user_id", "items", "total_amount"],
+  "permission": {
+    "read": "doc.user_id == auth.uid || doc.rider_id == auth.uid || getUniCloudRoles() includes 'admin'",
+    "create": "auth.uid != null",
+    "update": "doc.rider_id == auth.uid || getUniCloudRoles() includes 'admin'",
+    "delete": "getUniCloudRoles() includes 'admin'"
+  },
+  "properties": {
+    "_id": {
+      "description": "ID,系统自动生成"
+    },
+    "order_no": {
+      "bsonType": "string",
+      "description": "订单号",
+      "forceDefaultValue": {
+        "$env": "uuid"
+      }
+    },
+    "user_id": {
+      "bsonType": "string",
+      "description": "下单用户ID"
+    },
+    "user_nickname": {
+      "bsonType": "string",
+      "description": "用户昵称(冗余)"
+    },
+    "user_phone": {
+      "bsonType": "string",
+      "description": "用户手机号(冗余)"
+    },
+    "rider_id": {
+      "bsonType": "string",
+      "description": "骑手ID"
+    },
+    "rider_nickname": {
+      "bsonType": "string",
+      "description": "骑手昵称(冗余)"
+    },
+    "rider_phone": {
+      "bsonType": "string",
+      "description": "骑手手机号(冗余)"
+    },
+    "items": {
+      "bsonType": "array",
+      "description": "订单明细",
+      "items": {
+        "bsonType": "object",
+        "properties": {
+          "dishId": { "bsonType": "string" },
+          "dishName": { "bsonType": "string" },
+          "price": { "bsonType": "double" },
+          "qty": { "bsonType": "int" },
+          "subtotal": { "bsonType": "double" }
+        }
+      }
+    },
+    "total_amount": {
+      "bsonType": "double",
+      "description": "订单总金额"
+    },
+    "delivery_fee": {
+      "bsonType": "double",
+      "description": "配送费",
+      "defaultValue": 0
+    },
+    "address": {
+      "bsonType": "object",
+      "description": "配送地址",
+      "properties": {
+        "name": { "bsonType": "string" },
+        "phone": { "bsonType": "string" },
+        "address": { "bsonType": "string" },
+        "house_number": { "bsonType": "string" },
+        "lat": { "bsonType": "double" },
+        "lng": { "bsonType": "double" }
+      }
+    },
+    "remark": {
+      "bsonType": "string",
+      "description": "备注"
+    },
+    "status": {
+      "bsonType": "string",
+      "description": "PENDING 待支付/待接单,COOKING 后厨制作,READY 出餐待取, DELIVERING 配送中, DONE 已送达, CANCELLED 已取消",
+      "defaultValue": "PENDING"
+    },
+    "kitchen_status": {
+      "bsonType": "string",
+      "description": "后厨子状态: PENDING 待接单, COOKING 制作中, READY 已出餐",
+      "defaultValue": "PENDING"
+    },
+    "rider_status": {
+      "bsonType": "string",
+      "description": "骑手子状态: WAITING 等抢, GRABBED 已抢, PICKED 已取餐, DELIVERED 已送达",
+      "defaultValue": "WAITING"
+    },
+    "pay_status": {
+      "bsonType": "string",
+      "description": "UNPAID 未支付, PAID 已支付, REFUND 已退款",
+      "defaultValue": "UNPAID"
+    },
+    "pay_time": {
+      "bsonType": "timestamp",
+      "description": "支付时间"
+    },
+    "grab_time": {
+      "bsonType": "timestamp",
+      "description": "骑手抢单时间"
+    },
+    "deliver_time": {
+      "bsonType": "timestamp",
+      "description": "送达时间"
+    },
+    "create_time": {
+      "bsonType": "timestamp",
+      "description": "下单时间",
+      "forceDefaultValue": {
+        "$env": "now"
+      }
+    },
+    "update_time": {
+      "bsonType": "timestamp",
+      "description": "更新时间"
+    }
+  }
+}

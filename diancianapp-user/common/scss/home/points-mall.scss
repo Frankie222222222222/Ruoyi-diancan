@@ -1,0 +1,103 @@
+.wrap {
+	height: 100vh;
+	width: 100%;
+	background-color: #FFFFFF;
+
+	&__img {
+		position: relative;
+
+		&__btn {
+
+			view {
+				background-color: white;
+				font-size: 24rpx;
+				color: #333;
+				padding: 10rpx 20rpx;
+				background-color: #F8E6B9;
+				font-weight: bold;
+			}
+
+			view:nth-child(1) {
+				position: absolute;
+				left: 0;
+				bottom: 25%;
+				border-top-right-radius: 30rpx;
+				border-bottom-right-radius: 30rpx;
+			}
+
+			view:nth-child(2) {
+				position: absolute;
+				right: 0;
+				bottom: 25%;
+				border-top-left-radius: 30rpx;
+				border-bottom-left-radius: 30rpx;
+			}
+		}
+	}
+
+	&__grid {
+
+		&__title {
+			color: $u-type-info;
+			font-size: 24rpx;
+			margin-bottom: 10rpx;
+		}
+
+		&__desc {
+			color: #FF2D4D;
+			font-weight: bold;
+			font-size: 40rpx;
+		}
+	}
+
+	// 邀请列表
+	&__invitationList {
+
+		&__list {
+			margin: 50rpx 30rpx 0 30rpx;
+			display: flex;
+			justify-content: space-between;
+
+			&__left {
+				display: flex;
+				align-items: center;
+
+				&__info {
+					margin-left: 20rpx;
+
+					view:nth-child(1) {
+						color: #333;
+						font-weight: bold;
+					}
+
+					view:nth-child(2) {
+						font-size: 24rpx;
+						color: $u-type-info;
+						margin-top: 10rpx;
+
+						text {
+							color: #FF2D4D;
+						}
+					}
+				}
+			}
+
+			&__right {
+				display: flex;
+				flex-direction: column;
+				text-align: right;
+
+				view:nth-child(1) {
+					color: #FF2D4D;
+					font-weight: bold;
+				}
+
+				view:nth-child(2) {
+					color: $u-type-info;
+					font-size: 20rpx;
+					margin-top: 20rpx;
+				}
+			}
+		}
+	}
+}

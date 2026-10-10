@@ -1,0 +1,36 @@
+# 单元测试 profile:禁用 MyBatis / Redis / Spring Security,只跑 Service 业务逻辑
+# 真正需要 MyBatis 的 SQL 已通过 @Mock 隔离,本配置不连真实数据库
+spring:
+  main:
+    allow-bean-definition-overriding: true
+    banner-mode: off
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: never
+  # 测试期禁用 SecurityUtils(避免 NullPointer)
+  security:
+    user:
+      name: test
+      password: test
+
+# 关闭 MyBatis 自动配置(测试中用 @Mock)
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.ruoyi.takeout: DEBUG
+    org.springframework: WARN
+    org.mockito: WARN

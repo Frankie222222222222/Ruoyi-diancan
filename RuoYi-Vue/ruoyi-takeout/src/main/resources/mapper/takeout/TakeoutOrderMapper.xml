@@ -26,6 +26,12 @@
         <result property="completeTime"   column="complete_time"   />
         <result property="cancelReason"   column="cancel_reason"   />
         <result property="delFlag"        column="del_flag"        />
+        <!-- v2 字段 -->
+        <result property="kitchenId"        column="kitchen_id"        />
+        <result property="kitchenAcceptTime" column="kitchen_accept_time" />
+        <result property="readyTime"        column="ready_time"        />
+        <result property="riderId"          column="rider_id"          />
+        <result property="riderAcceptTime"  column="rider_accept_time" />
         <result property="createBy"       column="create_by"       />
         <result property="createTime"     column="create_time"     />
         <result property="updateBy"       column="update_by"       />
@@ -50,6 +56,7 @@
                o.total_amount, o.delivery_fee, o.discount_amount, o.actual_amount, o.coupon_user_id, o.status, o.pay_status, o.pay_method,
                o.receiver_name, o.receiver_phone, o.address, o.remark,
                o.delivery_time, o.pay_time, o.complete_time, o.cancel_reason, o.del_flag,
+               o.kitchen_id, o.kitchen_accept_time, o.ready_time, o.rider_id, o.rider_accept_time,
                o.create_by, o.create_time, o.update_by, o.update_time
         FROM takeout_order o
     </sql>
@@ -187,6 +194,11 @@
         <set>
             status = #{status},
             <if test="completeTime != null">complete_time = #{completeTime},</if>
+            <if test="kitchenAcceptTime != null">kitchen_accept_time = #{kitchenAcceptTime},</if>
+            <if test="readyTime != null">ready_time = #{readyTime},</if>
+            <if test="riderAcceptTime != null">rider_accept_time = #{riderAcceptTime},</if>
+            <if test="kitchenId != null">kitchen_id = #{kitchenId},</if>
+            <if test="riderId != null">rider_id = #{riderId},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = NOW()
         </set>
@@ -267,6 +279,48 @@
               WHERE merchant_id = #{merchantId} AND del_flag = '0'
                 AND status IN ('4','5','6')
                 AND DATE(pay_time) = CURDATE()) AS todayAmount
+    </select>
+
+    <!-- ========== v2 扩展(2026-10-10) ========== -->
+
+    <!-- 骑手可见订单(status = 2b/READY,按 ready_time 升序,先出先送) -->
+    <select id="selectRiderAvailableOrders" resultMap="TakeoutOrderResult">
+        <include refid="selectOrderVo"/>
+        WHERE o.del_flag = '0' AND o.status = '2b'
+        ORDER BY o.ready_time ASC, o.order_id ASC
+    </select>
+
+    <!-- 后厨可见订单: status IN (1=PAID, 2=ACCEPTED旧值, 2a=MAKING) -->
+    <select id="selectKitchenVisibleOrders" resultMap="TakeoutOrderResult">
+        <include refid="selectOrderVo"/>
+        WHERE o.del_flag = '0' AND o.status IN ('1', '2', '2a')
+        ORDER BY
+            CASE o.status
+                WHEN '2a' THEN 1
+                WHEN '1'  THEN 2
+                WHEN '2'  THEN 3
+            END,
+            o.pay_time ASC,
+            o.order_id ASC
+    </select>
+
+    <!-- 骑手抢单前置查询: 校验订单是否仍为 READY(防并发) -->
+    <select id="selectOrderForRiderGrab" parameterType="Long" resultMap="TakeoutOrderResult">
+        <include refid="selectOrderVo"/>
+        WHERE o.del_flag = '0' AND o.order_id = #{orderId} AND o.status = '2b'
+        FOR UPDATE
+    </select>
+
+    <!-- 后厨拉取订单的待制/制作中统计(看板) -->
+    <select id="countKitchenPending" resultType="java.util.HashMap">
+        SELECT
+            SUM(CASE WHEN status = '1'  THEN 1 ELSE 0 END) AS paidCount,
+            SUM(CASE WHEN status = '2'  THEN 1 ELSE 0 END) AS acceptedCount,
+            SUM(CASE WHEN status = '2a' THEN 1 ELSE 0 END) AS makingCount,
+            SUM(CASE WHEN status = '2b' THEN 1 ELSE 0 END) AS readyCount,
+            COUNT(*) AS totalCount
+        FROM takeout_order
+        WHERE del_flag = '0' AND status IN ('1', '2', '2a', '2b')
     </select>
 
 </mapper>

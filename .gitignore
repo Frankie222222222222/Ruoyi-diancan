@@ -80,3 +80,8 @@ start-ruoyi.bat
 start-ruoyi-with-redis.ps1
 strip-bom.ps1
 logs/
+
+# ============== 本地辅助脚本(不入库) ==============
+compile_only.bat
+run_backend.bat
+run_sql.bat

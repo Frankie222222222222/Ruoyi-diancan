@@ -16,6 +16,16 @@
           <el-option v-for="m in merchantOptions" :key="m.merchantId" :label="m.merchantName" :value="m.merchantId" />
         </el-select>
       </el-form-item>
+      <el-form-item label="骑手" prop="riderId">
+        <el-select v-model="queryParams.riderId" placeholder="全部骑手" clearable filterable style="width: 200px">
+          <el-option
+            v-for="r in riderOptions"
+            :key="r.riderId"
+            :label="`${r.name}${r.phone ? ' (' + r.phone + ')' : ''}`"
+            :value="r.riderId"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="全部状态" clearable style="width: 160px">
           <el-option v-for="(label, value) in statusDict" :key="value" :label="label" :value="value" />
@@ -475,6 +485,7 @@
 import { listOrder, getOrder, addOrder, updateOrder, delOrder, changeOrderStatus, cancelOrder, getOrderStatusDict, exportOrder, listDishByMerchant } from "@/api/takeout/order"
 import { listMerchant } from "@/api/takeout/merchant"
 import { listUser } from "@/api/takeout/user"
+import { listRider } from "@/api/takeout/rider"
 import { addDateRange, parseTime } from "@/utils/ruoyi"
 import { listPayment, createPayment, queryPayment, refundPayment } from "@/api/takeout/payment"
 
@@ -482,6 +493,7 @@ const { proxy } = getCurrentInstance()
 
 const orderList = ref([])
 const merchantOptions = ref([])
+const riderOptions = ref([])
 const userOptions = ref([])
 const open = ref(false)
 const detailOpen = ref(false)
@@ -529,6 +541,7 @@ const data = reactive({
     pageSize: 10,
     orderNo: undefined,
     merchantId: undefined,
+    riderId: undefined,
     status: undefined,
     receiverName: undefined,
     receiverPhone: undefined
@@ -687,6 +700,12 @@ function loadDicts() {
 function loadMerchants() {
   listMerchant({ pageNum: 1, pageSize: 200 }).then(res => {
     merchantOptions.value = (res.rows || []).map(m => ({ merchantId: m.merchantId, merchantName: m.merchantName }))
+  })
+}
+
+function loadRiders() {
+  listRider({ pageNum: 1, pageSize: 1000 }).then(res => {
+    riderOptions.value = (res.rows || []).map(r => ({ riderId: r.riderId, name: r.name, phone: r.phone }))
   })
 }
 
@@ -1021,6 +1040,7 @@ async function openPaymentLog() {
 onMounted(() => {
   loadDicts()
   loadMerchants()
+  loadRiders()
   loadUsers()
   getList()
 })

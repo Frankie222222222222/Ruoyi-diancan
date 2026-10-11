@@ -78,6 +78,9 @@
             <if test="userId != null">
                 AND o.user_id = #{userId}
             </if>
+            <if test="riderId != null">
+                AND o.rider_id = #{riderId}
+            </if>
             <if test="status != null and status != ''">
                 AND o.status = #{status}
             </if>

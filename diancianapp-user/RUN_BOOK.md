@@ -227,6 +227,45 @@ HBuilderX → 运行 → 运行到小程序模拟器 → 微信开发者工具
 
 ---
 
+## 数据库菜单/业务 SQL 一次性补全 (2026-10-11)
+
+### 背景
+之前多次执行 v1/v2/v3 SQL 遗留了:
+- 菜单名 GBK 乱码 (存进了 `?`)
+- 同 perms 重复的菜单 (29 → 7 → 已缩到只剩 v1/v2 平行有意保留)
+- v2/v3 菜单被 auto_increment 挤到 10000+ 段
+- 角色授权只覆盖了 26 个菜单 (应 ≥ 60)
+- `takeout_dish_category` 0 行
+
+### 一次性修复
+```powershell
+cd e:\ruoyi-vue3
+.\db\fix-menus-and-grants.sql    # 通过 mysql SOURCE 跑
+```
+
+### 校验
+```powershell
+.\db\verify-db.ps1
+```
+预期输出 89 个 takeout 菜单、admin 89 条授权、所有 14 张业务表/字典齐全。
+
+### 工具脚本
+- `db/test-connection.ps1` — MySQL 连接测试
+- `db/init-takeout.ps1` — 25 步 orchestrator (空库重建用)
+- `db/fix-menus-and-grants.sql` — 在已有库上做一次修复
+- `db/verify-db.ps1` — 校验脚本
+- `db/clean-v1.sql` / `db/seed-dict.sql` / `db/bind-roles.sql` — orchestrator 内部子任务
+
+### 编码注意
+Windows PowerShell + MySQL 5.7 客户端组合下,UTF-8 中文**必须**用以下形式跑,否则会变成 `?`:
+```powershell
+& "C:\Program Files\MySQL\MySQL Server 5.7\bin\mysql.exe" -h 127.0.0.1 -u root `
+    --default-character-set=utf8mb4 ry-vue -e "SOURCE e:/ruoyi-vue3/db/xxx.sql"
+```
+**不要**用 `Get-Content xxx.sql | mysql ...`(管道会重新编码)。
+
+---
+
 ## ✅ 完成清单
 
 - [ ] MySQL 数据 OK

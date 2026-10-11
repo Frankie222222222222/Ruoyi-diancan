@@ -15,6 +15,11 @@ export function registerUser(data) {
   return request({ url: '/takeout/user/register', method: 'post', data })
 }
 
+// Admin add user (管理员代建)
+export function addUser(data) {
+  return request({ url: '/takeout/user', method: 'post', data })
+}
+
 // User login (by phone)
 export function loginUser(data) {
   return request({ url: '/takeout/user/login', method: 'post', data })

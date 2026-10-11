@@ -22,6 +22,13 @@ public interface ITakeoutUserService
     /** C端用户注册 */
     int registerUser(TakeoutUser user);
 
+    /**
+     * 后台管理员代建用户(2026-10-12)
+     * @param user 入参,允许 role/status/nickname/phone/gender/city/avatar/remark
+     * @return 成功返回 userId,失败抛 ServiceException
+     */
+    Long adminAddUser(TakeoutUser user);
+
     /** C端用户登录 */
     TakeoutUser login(String phone);
 

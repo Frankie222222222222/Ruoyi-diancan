@@ -21,6 +21,9 @@
 
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
+        <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['takeout:user:add']">新增</el-button>
+      </el-col>
+      <el-col :span="1.5">
         <el-button type="info" plain icon="View" :disabled="single" @click="handleView" v-hasPermi="['takeout:user:query']">查看详情</el-button>
       </el-col>
       <el-col :span="1.5">
@@ -91,11 +94,54 @@
         <el-button @click="viewOpen = false">关 闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 新增用户弹窗 -->
+    <el-dialog title="新增用户" v-model="addOpen" width="560px" append-to-body>
+      <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="90px">
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="addForm.phone" placeholder="请输入手机号" maxlength="11" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="addForm.nickname" placeholder="选填,默认 手机号后4位" maxlength="30" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="性别" prop="gender">
+          <el-select v-model="addForm.gender" placeholder="请选择性别" style="width: 100%">
+            <el-option label="未知" value="0" />
+            <el-option label="男" value="1" />
+            <el-option label="女" value="2" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="角色" prop="role">
+          <el-select v-model="addForm.role" placeholder="请选择角色" style="width: 100%">
+            <el-option label="顾客(user)" value="user" />
+            <el-option label="后厨(kitchen)" value="kitchen" />
+            <el-option label="骑手(rider)" value="rider" />
+            <el-option label="管理员(admin)" value="admin" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态" prop="status">
+          <el-radio-group v-model="addForm.status">
+            <el-radio value="0">正常</el-radio>
+            <el-radio value="1">禁用</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="城市" prop="city">
+          <el-input v-model="addForm.city" placeholder="选填" maxlength="50" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input v-model="addForm.remark" type="textarea" :rows="2" placeholder="选填" maxlength="200" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addOpen = false">取 消</el-button>
+        <el-button type="primary" :loading="addLoading" @click="submitAdd">确 定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup name="TakeoutUser">
-import { listUser, getUser, updateUser } from "@/api/takeout/user"
+import { listUser, getUser, updateUser, addUser } from "@/api/takeout/user"
 import { parseTime } from "@/utils/ruoyi"
 
 const { proxy } = getCurrentInstance()
@@ -110,6 +156,29 @@ const total = ref(0)
 // 详情弹窗
 const viewOpen = ref(false)
 const viewForm = ref({})
+
+// 新增弹窗
+const addOpen = ref(false)
+const addLoading = ref(false)
+const addFormRef = ref()
+const addForm = ref({
+  phone: '',
+  nickname: '',
+  gender: '0',
+  role: 'user',
+  status: '0',
+  city: '',
+  remark: ''
+})
+const addRules = {
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }
+  ],
+  gender: [{ required: true, message: '请选择性别', trigger: 'change' }],
+  role: [{ required: true, message: '请选择角色', trigger: 'change' }],
+  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
+}
 
 // 字典
 const genderDict = { '1': '男', '2': '女' }
@@ -175,6 +244,36 @@ function handleToggleStatus(row) {
 function handleDisable() {
   const row = userList.value.find(u => u.userId === ids.value[0])
   handleToggleStatus(row)
+}
+
+/** 打开新增弹窗 */
+function handleAdd() {
+  addForm.value = {
+    phone: '',
+    nickname: '',
+    gender: '0',
+    role: 'user',
+    status: '0',
+    city: '',
+    remark: ''
+  }
+  addOpen.value = true
+}
+
+/** 提交新增 */
+function submitAdd() {
+  addFormRef.value.validate(valid => {
+    if (!valid) return
+    addLoading.value = true
+    addUser(addForm.value).then(res => {
+      addLoading.value = false
+      proxy.$modal.msgSuccess('新增成功')
+      addOpen.value = false
+      getList()
+    }).catch(() => {
+      addLoading.value = false
+    })
+  })
 }
 
 onMounted(getList)

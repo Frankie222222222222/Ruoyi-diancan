@@ -153,6 +153,25 @@ public class TakeoutUserController extends BaseController
         return toAjax(userService.deleteUserByIds(ids));
     }
 
+    /**
+     * 后台新增用户(管理员代建)
+     * <p>区别于 {@link #register} 公开 C 端注册:
+     * <ul>
+     *   <li>需要 {@code takeout:user:add} 权限</li>
+     *   <li>可指定 role(用户/后厨/骑手/管理员) + status</li>
+     *   <li>不强制使用手机号作昵称默认</li>
+     * </ul>
+     * </p>
+     */
+    @PreAuthorize("@ss.hasPermi('takeout:user:add')")
+    @Log(title = "C端用户", businessType = BusinessType.INSERT)
+    @PostMapping
+    public AjaxResult add(@RequestBody TakeoutUser user)
+    {
+        int rows = userService.adminAddUser(user);
+        return rows > 0 ? success(user.getUserId()) : error();
+    }
+
     /** 累加消费(内部调用,供订单完成时统计) */
     @PostMapping("/incrementStats/{userId}")
     public AjaxResult incrementStats(@PathVariable Long userId, @RequestParam BigDecimal amount)

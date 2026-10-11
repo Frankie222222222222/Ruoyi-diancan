@@ -75,6 +75,55 @@ public class TakeoutUserServiceImpl implements ITakeoutUserService
     }
 
     @Override
+    public Long adminAddUser(TakeoutUser user)
+    {
+        // 1. 校验必填 + 手机号格式
+        if (StringUtils.isEmpty(user.getPhone()) || !user.getPhone().matches("^1[3-9]\\d{9}$"))
+        {
+            throw new ServiceException("[ERR_" + ERR_PHONE_INVALID + "] 手机号格式不正确", ERR_PHONE_INVALID);
+        }
+        if (StringUtils.isEmpty(user.getNickname()))
+        {
+            user.setNickname("用户" + user.getPhone().substring(7));
+        }
+        // 2. 查重
+        TakeoutUser exist = userMapper.selectUserByPhone(user.getPhone());
+        if (exist != null)
+        {
+            throw new ServiceException("[ERR_" + ERR_PHONE_EXISTS + "] 该手机号已注册", ERR_PHONE_EXISTS);
+        }
+        // 3. 校验 role
+        if (StringUtils.isNotEmpty(user.getRole()) && !UserRoleEnum.isValid(user.getRole()))
+        {
+            throw new ServiceException(
+                String.format("[ERR_6005] 非法角色：%s（合法值：%s）",
+                    user.getRole(), UserRoleEnum.ALL_CODES),
+                6005);
+        }
+        // 4. 默认值
+        if (StringUtils.isEmpty(user.getRole()))
+        {
+            user.setRole(UserRoleEnum.USER.getCode());
+        }
+        if (StringUtils.isEmpty(user.getGender()))
+        {
+            user.setGender("0");
+        }
+        if (StringUtils.isEmpty(user.getStatus()))
+        {
+            user.setStatus("0");
+        }
+        user.setRegTime(DateUtils.getNowDate());
+        // 5. 写入
+        int rows = userMapper.insertUser(user);
+        if (rows <= 0)
+        {
+            throw new ServiceException("[ERR_6006] 用户新增失败", 6006);
+        }
+        return user.getUserId();
+    }
+
+    @Override
     public TakeoutUser login(String phone)
     {
         if (StringUtils.isEmpty(phone))

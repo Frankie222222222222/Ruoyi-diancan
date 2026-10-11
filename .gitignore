@@ -85,3 +85,7 @@ logs/
 compile_only.bat
 run_backend.bat
 run_sql.bat
+
+# ============== MinIO 运行时状态(非源代码) ==============
+minio/data/.minio.sys/
+minio/data/.minio.sys/**

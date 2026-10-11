@@ -49,6 +49,27 @@
     },
     /* 快应用特有相关 */
     "quickapp" : {},
+    /* H5 移动 web 编译目标(2026-10-11 启用) */
+    "h5" : {
+        "title" : "倚品美食馆",
+        "router" : {
+            "mode" : "hash",
+            "base" : "./"
+        },
+        "devServer" : {
+            "https" : false,
+            "port" : 5173,
+            "disableHostCheck" : true,
+            "proxy" : {
+                "/dev-api" : {
+                    "target" : "http://localhost:8080",
+                    "changeOrigin" : true,
+                    "secure" : false
+                }
+            }
+        }
+        , "sdkConfigs" : {}
+    },
     /* 小程序特有相关 */
     "mp-weixin" : {
         "appid" : "",

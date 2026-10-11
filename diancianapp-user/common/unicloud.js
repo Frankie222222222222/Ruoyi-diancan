@@ -15,7 +15,13 @@ export const unicloud = {
    * @param {number} timeout
    */
   async call(name, data = {}, timeout = 10000) {
-    // 微信小程序 / H5 / App 三端都支持
+    // H5 浏览器无 uniCloud,直接 reject 让业务层降级到 RuoYi REST
+    // #ifdef H5
+    return Promise.reject(new Error('H5 模式请走 common/request.js 的 RuoYi REST 接口'));
+    // #endif
+
+    // #ifndef H5
+    // 微信小程序 / App 端都支持
     return new Promise((resolve, reject) => {
       if (typeof uniCloud === 'undefined' || !uniCloud.callFunction) {
         reject(new Error('uniCloud.callFunction 不可用 - 请在 HBuilderX 中运行到真机或模拟器'));
@@ -40,6 +46,7 @@ export const unicloud = {
         }
       });
     });
+    // #endif
   },
 
   /**
@@ -72,10 +79,31 @@ export const unicloud = {
   },
 
   /**
-   * zhouhao: 接单/出餐
+   * zhouhao: 订单详情
    */
-  async updateOrderStatus({ orderId, kitchenStatus, orderStatus }) {
-    return this.call('zhouhao', { action: 'updateOrderStatus', orderId, kitchenStatus, orderStatus });
+  async orderDetail({ orderId }) {
+    return this.call('zhouhao', { action: 'orderDetail', orderId });
+  },
+
+  /**
+   * zhouhao: 顾客端菜单(分类 + 菜品)
+   */
+  async dishList() {
+    return this.call('zhouhao', { action: 'dishList' });
+  },
+
+  /**
+   * zhouhao: 顾客端我的订单
+   */
+  async myOrdersC({ userId, status, orderType, limit }) {
+    return this.call('zhouhao', { action: 'myOrders', userId, status, orderType, limit });
+  },
+
+  /**
+   * zhouhao: 顾客端取消订单
+   */
+  async cancelOrder({ orderId, userId, reason }) {
+    return this.call('zhouhao', { action: 'cancelOrder', orderId, userId, reason });
   },
 
   /**

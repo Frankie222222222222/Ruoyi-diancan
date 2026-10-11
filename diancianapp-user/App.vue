@@ -25,11 +25,13 @@
 </script>
 
 <style lang="scss">
-	/* uni.scss 全局样式变量 */
+	/* 全局样式 token - 来源 @/common/scss/theme.scss(由 App.vue 的 import 链引入) */
 	@import "@/uni_modules/uview-ui/index.scss";
+	@import "@/common/scss/theme.scss";
+
 	page {
-		background-color: #f5f5f5;
-		font-size: 28rpx;
-		color: #333;
+		background-color: $bg-page;
+		font-size: $font-size-medium;
+		color: $text-color-base;
 	}
 </style>

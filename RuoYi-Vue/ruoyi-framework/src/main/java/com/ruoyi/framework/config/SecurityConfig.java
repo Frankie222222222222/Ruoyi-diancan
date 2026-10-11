@@ -125,6 +125,8 @@ public class SecurityConfig
                     .requestMatchers("/takeout/dineIn/table/*", "/takeout/dineIn/menu", "/takeout/dineIn/order/active").permitAll()
                     // ⚠️ uniCloud 桥接(走共享密钥鉴权,由 Controller 自校验,不需要 JWT)
                     .requestMatchers("/unicloud/**").permitAll()
+                    // ⚠️ WebSocket 推送端点(2026-10-11):鉴权由应用层 token 完成,网关放行
+                    .requestMatchers("/ws/**").permitAll()
                     // ⚠️ 测试数据生成器（仅供本地调试,生产环境请删除）
                     .requestMatchers("/takeout/testData/**").permitAll()
                     // 静态资源，可匿名访问

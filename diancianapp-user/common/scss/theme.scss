@@ -1,0 +1,148 @@
+/**
+ * theme.scss - 智能点餐系统唯一样式源
+ *
+ * 用法:
+ *   @import "@/common/scss/theme.scss";
+ *
+ * 所有页面 / 组件 / scss 文件统一从这里取色板、字号、圆角、间距。
+ * 改色只改这一处。
+ *
+ * 历史兼容:
+ *   - 同时暴露 $color-primary / $text-color-base / $border-radius-lg 等老 token 别名
+ *   - 与 uView 2.x (vk-uview-ui) 通过 uni.scss 显式桥接
+ *   - 与 Element 调色板共存(角色徽章)
+ */
+
+/* ===================  颜色  =================== */
+
+/* 主品牌(墨绿) */
+$color-primary:        #0A3D28;
+$color-primary-light:  #1D6A45;
+$color-primary-dark:   #062018;
+
+/* 强调色 */
+$color-price:          #FF362D;   // 价格红(高优)
+$color-accent:         #DBA871;   // 暖橙(点睛/选规格按钮)
+$color-balance:        #1D984F;   // 余额绿
+$color-coupon:         #EE520C;   // 优惠券红
+
+/* 行为色 */
+$color-success:        #4cd964;
+$color-warning:        #f0ad4e;
+$color-error:          #dd524d;
+
+/* 中性 */
+$bg-page:              #F5F5F5;
+$bg-card:              #FFFFFF;
+$text-color-base:      #343434;
+$text-color-assist:    #999999;
+$text-color-grey:      #666666;
+$text-color-placeholder:#808080;
+$text-color-disable:   #c0c0c0;
+$text-color-inverse:   #FFFFFF;
+$text-color-warning:   #432A21;
+
+$bg-color:             #F8F8F8;
+$bg-color-grey:        #f9f9f9;
+$bg-color-hover:       #f1f1f1;
+$bg-color-mask:        rgba(0, 0, 0, 0.4);
+$border-color:         #c8c7cc;
+
+/* Element 浅色(角色徽章复用) */
+$color-info:           #909399;
+$color-info-light:     #67C23A;
+$color-info-warning:   #E6A23C;
+$color-info-danger:    #F56C6C;
+
+/* ===================  尺寸  =================== */
+
+/* 字号(rpx,750 设计稿) */
+$font-size-extra-sm:   22rpx;
+$font-size-sm:         24rpx;
+$font-size-base:       26rpx;
+$font-size-medium:     28rpx;
+$font-size-lg:         32rpx;
+$font-size-extra-lg:   36rpx;
+
+/* 图片尺寸 */
+$img-size-sm:          40rpx;
+$img-size-base:        52rpx;
+$img-size-lg:          80rpx;
+
+/* 圆角 */
+$border-radius-sm:     4rpx;
+$border-radius-base:   6rpx;
+$border-radius-lg:     12rpx;
+$border-radius-xl:     18rpx;   // 主按钮大圆角
+$border-radius-circle: 50%;
+
+/* 间距 */
+$spacing-row-sm:       10rpx;
+$spacing-row-base:     20rpx;
+$spacing-row-lg:       30rpx;
+$spacing-col-sm:       10rpx;
+$spacing-col-base:     20rpx;
+$spacing-col-lg:       30rpx;
+
+/* 透明度 */
+$opacity-disabled:     0.3;
+
+$box-shadow:           0 20rpx 20rpx -20rpx rgba($color: #333, $alpha: 0.1);
+
+/* 文章场景 */
+$color-title:          #2c405a;
+$font-size-title:      40rpx;
+$color-subtitle:       #555555;
+$font-size-subtitle:   36rpx;
+$color-paragraph:      #3f536e;
+$font-size-paragraph:  30rpx;
+
+/* ===================  桥接 uView / uni 命名空间  =================== */
+/* uView 2 默认主色是 #2979ff,在 uni.scss 里被我们覆盖为墨绿。
+   这里只把品牌色桥过去,其它 uView 颜色保持原值以免破坏第三方组件。 */
+$uni-color-primary:    $color-primary;
+$uni-color-success:    $color-success;
+$uni-color-warning:    $color-warning;
+$uni-color-error:      $color-error;
+
+$uni-text-color:           $text-color-base;
+$uni-text-color-inverse:   $text-color-inverse;
+$uni-text-color-grey:      $text-color-assist;
+$uni-text-color-placeholder:$text-color-placeholder;
+$uni-text-color-disable:   $text-color-disable;
+
+$uni-bg-color:         $bg-card;
+$uni-bg-color-grey:    $bg-color;
+$uni-bg-color-hover:   $bg-color-hover;
+$uni-bg-color-mask:    $bg-color-mask;
+
+$uni-border-color:     $border-color;
+
+$uni-font-size-sm:     12px;
+$uni-font-size-base:   14px;
+$uni-font-size-lg:     16px;
+
+$uni-img-size-sm:      20px;
+$uni-img-size-base:    26px;
+$uni-img-size-lg:      40px;
+
+$uni-border-radius-sm:  2px;
+$uni-border-radius-base:3px;
+$uni-border-radius-lg:  6px;
+$uni-border-radius-circle:50%;
+
+$uni-spacing-row-sm:   5px;
+$uni-spacing-row-base: 10px;
+$uni-spacing-row-lg:   15px;
+$uni-spacing-col-sm:   4px;
+$uni-spacing-col-base: 8px;
+$uni-spacing-col-lg:   12px;
+
+$uni-opacity-disabled: $opacity-disabled;
+
+$uni-color-title:      $color-title;
+$uni-font-size-title:  20px;
+$uni-color-subtitle:   $color-subtitle;
+$uni-font-size-subtitle:26px;
+$uni-color-paragraph:  $color-paragraph;
+$uni-font-size-paragraph:15px;

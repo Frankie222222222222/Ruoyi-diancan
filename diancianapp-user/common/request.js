@@ -1,10 +1,18 @@
 /**
  * utils/request.js - RuoYi 后端 REST 调用
  * 优先用本地 axios,无则降级到 uni.request
+ *
+ * H5 端走 /dev-api(Vite 代理 -> 8080),其它端直接打 localhost:8080
  */
 import { storage } from './storage.js';
 
+// #ifdef H5
+const BASE_URL = '/dev-api';
+// #endif
+
+// #ifndef H5
 const BASE_URL = 'http://localhost:8080'; // 用户改成自己的后端地址
+// #endif
 
 function http(path, { method = 'GET', data, query, header = {} } = {}) {
   return new Promise((resolve, reject) => {

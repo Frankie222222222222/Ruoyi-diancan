@@ -1,3 +1,11 @@
+/**
+ * app.scss - 全局 utility 类
+ *
+ * 设计 token 统一来自 @/common/scss/theme.scss。
+ * 切勿在此硬编码颜色 / 字号 / 圆角。
+ */
+@import '@/common/scss/theme.scss';
+
 page,
 view,
 scroll-view,

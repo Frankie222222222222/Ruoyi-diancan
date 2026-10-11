@@ -7,13 +7,18 @@
  *   - 'listKitchenOrders'  : 查询后厨订单(待处理/制作中)
  *   - 'updateOrderStatus'  : 更新订单状态(接单/出餐)
  *   - 'orderDetail'        : 订单详情
+ *   - 'dishList'           : 顾客端菜单(分类 + 菜品,按 status/del_flag 过滤)
+ *   - 'myOrders'           : 顾客端我的订单(支持按状态/订单类型过滤)
+ *   - 'cancelOrder'        : 顾客端取消订单(PENDING 状态可取消)
  *
  * 数据库集合:
  *   - takeout_user
  *   - takeout_order
  *   - takeout_dish
+ *   - takeout_dish_category
  *
  * 注意: v2 (2026-10-10) 角色分流版
+ * 注意: v2.1 (2026-10-11) 新增 dishList/myOrders/cancelOrder
  */
 
 const db = uniCloud.database();
@@ -33,6 +38,12 @@ exports.main = async (event, context) => {
         return await updateOrderStatus(event);
       case 'orderDetail':
         return await orderDetail(event);
+      case 'dishList':
+        return await dishList(event);
+      case 'myOrders':
+        return await myOrders(event);
+      case 'cancelOrder':
+        return await cancelOrder(event);
       default:
         return { code: 400, msg: '未知 action: ' + action, data: null };
     }
@@ -132,8 +143,8 @@ async function createOrder(event) {
 async function listKitchenOrders(event) {
   const { status, limit = 50 } = event;
 
-  // 默认返回需要后厨处理的状态
-  const where = { del_flag: dbCmd.neq('2') || '0' };
+  // 软删除过滤(neq '2' OR 不存在,这里用 neq('2') 简化)
+  const where = { del_flag: dbCmd.neq('2') };
   if (status && Array.isArray(status)) {
     where.kitchen_status = dbCmd.in(status);
   } else if (status) {
@@ -190,4 +201,84 @@ async function orderDetail(event) {
     return { code: 4007, msg: '订单不存在', data: null };
   }
   return { code: 0, msg: 'ok', data: res.data[0] };
+}
+
+/* ============== 5. 顾客端菜单 ============== */
+/**
+ * 返回结构: {
+ *   categories: [{ _id, name, sort }],
+ *   dishes: [{ _id, name, category, price, image, description, sales, stock }]
+ * }
+ * 只返回 status=0(上架) 且 del_flag=0(未删除) 的数据
+ */
+async function dishList(event) {
+  const catRes = await db.collection('takeout_dish_category')
+    .where({ del_flag: dbCmd.neq('2') })
+    .orderBy('sort', 'asc')
+    .get();
+  // soft-delete 用字符串 '2',neq('2') 才是真过滤
+  const catList = (catRes.data || []).filter(c => c.del_flag !== '2');
+
+  const dishRes = await db.collection('takeout_dish')
+    .where({ status: '0', del_flag: dbCmd.neq('2') })
+    .orderBy('sales', 'desc')
+    .limit(500)
+    .get();
+  const dishList = (dishRes.data || []).filter(d => d.del_flag !== '2');
+
+  return { code: 0, msg: 'ok', data: { categories: catList, dishes: dishList } };
+}
+
+/* ============== 6. 顾客端我的订单 ============== */
+/**
+ * 入参: { userId, status?, orderType?, limit? }
+ *   status:    数组或字符串(可选),按主状态 status 过滤
+ *   orderType: 'takein' | 'takeout'(可选) - 堂食/外卖
+ *   limit:     默认 50
+ */
+async function myOrders(event) {
+  const { userId, status, orderType, limit = 50 } = event;
+  if (!userId) {
+    return { code: 4001, msg: 'userId 必填', data: null };
+  }
+  const where = { user_id: userId, del_flag: dbCmd.neq('2') };
+  if (status) {
+    where.status = Array.isArray(status) ? dbCmd.in(status) : status;
+  }
+  if (orderType) {
+    // 堂食/外卖目前以 address 是否为空区分,可按业务实际调整
+    where.order_type = orderType;
+  }
+  const res = await db.collection('takeout_order')
+    .where(where)
+    .orderBy('create_time', 'desc')
+    .limit(Math.min(limit, 200))
+    .get();
+  return { code: 0, msg: 'ok', data: (res.data || []).filter(o => o.del_flag !== '2') };
+}
+
+/* ============== 7. 顾客端取消订单 ============== */
+/**
+ * 只有 PENDING 状态可取消,其它状态需走退款流程
+ */
+async function cancelOrder(event) {
+  const { orderId, userId, reason } = event;
+  if (!orderId || !userId) {
+    return { code: 4001, msg: 'orderId / userId 必填', data: null };
+  }
+  // 校验订单属于该用户
+  const own = await db.collection('takeout_order').doc(orderId).get();
+  const order = (own.data || [])[0];
+  if (!order) return { code: 4007, msg: '订单不存在', data: null };
+  if (order.user_id !== userId) return { code: 4008, msg: '无权操作此订单', data: null };
+  if (order.status !== 'PENDING') {
+    return { code: 4009, msg: '当前状态不可取消(' + order.status + ')', data: null };
+  }
+  await db.collection('takeout_order').doc(orderId).update({
+    status: 'CANCELLED',
+    cancel_reason: reason || '用户主动取消',
+    cancel_time: Date.now(),
+    update_time: Date.now(),
+  });
+  return { code: 0, msg: 'ok', data: { orderId, status: 'CANCELLED' } };
 }

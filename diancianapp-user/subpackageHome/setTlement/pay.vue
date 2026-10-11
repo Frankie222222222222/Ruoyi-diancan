@@ -109,7 +109,9 @@
 				<text>￥</text>
 				<text>{{ cartAmount }}</text>
 			</view>
-			<button type="primary">支付</button>
+			<button type="primary" :disabled="submitting || cart.length === 0" @click="onPay">
+				{{ submitting ? '提交中...' : '支付' }}
+			</button>
 		</view>
 	</view>
 </template>
@@ -127,10 +129,12 @@
 		useStore
 	} from 'vuex'
 	import TimePicker from '@/uni_modules/hbxw-timepicker/components/hbxw-timepicker/hbxw-timepicker.vue'
+	import { unicloud } from '@/common/unicloud.js'
 
 	const store = useStore()
 
 	const cart = ref([])
+	const submitting = ref(false)
 
 	const appointmentSet = ref({})
 	const deliveryType = ref('immediately')
@@ -221,6 +225,61 @@
 		uni.navigateTo({
 			url: `/subpackageMy/myAddress/address-manage?methods=pay`
 		})
+	}
+
+	/**
+	 * 提交订单:调 zhouhao.createOrder -> 跳订单详情
+	 * 真支付链路:此处只完成下单,微信支付留待 v2.2 接 wxpay 插件。
+	 */
+	const onPay = async () => {
+		if (submitting.value) return;
+		if (cart.value.length === 0) {
+			uni.showToast({ title: '购物车为空', icon: 'none' });
+			return;
+		}
+		const userInfo = store.state.userInfo;
+		if (!userInfo || !userInfo._id) {
+			uni.showToast({ title: '请先登录', icon: 'none' });
+			uni.reLaunch({ url: '/pages/login/login' });
+			return;
+		}
+		if (orderType.value === 'takeout' && !addressInfo.value?.address) {
+			uni.showToast({ title: '请选择收货地址', icon: 'none' });
+			return;
+		}
+
+		submitting.value = true;
+		uni.showLoading({ title: '提交中...' });
+		try {
+			const items = cart.value.map(it => ({
+				dishId: it.id,
+				qty: it.number || 1,
+			}));
+			const res = await unicloud.createOrder({
+				userId: userInfo._id,
+				items,
+				address: orderType.value === 'takeout' ? addressInfo.value : null,
+				remark: remark.value || '',
+			});
+			uni.hideLoading();
+			uni.showToast({ title: '下单成功', icon: 'success' });
+			// 清空购物车
+			uni.removeStorageSync('cart');
+			cart.value = [];
+			store.commit('SET_REMARK', '');
+			// 跳订单详情
+			setTimeout(() => {
+				uni.reLaunch({
+					url: `/subpackageOrder/order/order-detail?orderId=${res.data.orderId}&type=${orderType.value}`
+				});
+			}, 800);
+		} catch (e) {
+			uni.hideLoading();
+			uni.showToast({ title: e.message || '下单失败', icon: 'none' });
+			console.error('[pay] createOrder error:', e);
+		} finally {
+			submitting.value = false;
+		}
 	}
 </script>
 

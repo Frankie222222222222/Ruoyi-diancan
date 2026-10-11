@@ -119,8 +119,13 @@
 <script setup>
 	import {
 		ref,
+		computed,
+		onMounted
 	} from 'vue'
+	import { useStore } from 'vuex'
+	import { unicloud } from '@/common/unicloud.js'
 
+	const store = useStore()
 	const tabsList = ref([{
 			name: '自取订单'
 		},
@@ -132,132 +137,15 @@
 		}
 	])
 
-	const pickupList = ref([{
-		"status": '0',
-		"commodity_list": [{
-			"name": "招牌酱肉包",
-			"price": 5.99,
-			"number": 1,
-			"image": "/static/img/menu/menu-1.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}],
-		"shop_num": 1,
-		"price": 5.99
-	}, {
-		"status": '1',
-		"commodity_list": [{
-			"id": 12,
-			"name": "火腿包",
-			"price": 3.99,
-			"number": 1,
-			"image": "/static/img/menu/menu-2.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}, {
-			"name": "招牌酱肉包",
-			"price": 5.99,
-			"number": 1,
-			"image": "/static/img/menu/menu-1.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}],
-		"shop_num": 2,
-		"price": 9.98
-	}, {
-		"status": '2',
-		"commodity_list": [{
-			"id": 13,
-			"name": "酸菜油滋啦包",
-			"price": 4.59,
-			"number": 1,
-			"image": "/static/img/menu/menu-3.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}, {
-			"name": "火腿包",
-			"price": 3.99,
-			"number": 1,
-			"image": "/static/img/menu/menu-2.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}, {
-			"name": "招牌酱肉包",
-			"price": 5.99,
-			"number": 1,
-			"image": "/static/img/menu/menu-1.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}],
-		"shop_num": 3,
-		"price": 14.57
-	}]);
-	const takeoutList = ref([{
-		"commodity_list": [{
-			"name": "招牌酱肉包",
-			"price": 5.99,
-			"number": 1,
-			"image": "/static/img/menu/menu-1.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}],
-		"shop_num": 1,
-		"price": 5.99,
-		"orderstatus": 0,
-		"delivery_status": 0
-	}, {
-		"commodity_list": [{
-			"name": "火腿包",
-			"price": 3.99,
-			"number": 1,
-			"image": "/static/img/menu/menu-2.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}],
-		"shop_num": 1,
-		"price": 3.99,
-		"orderstatus": 0,
-		"delivery_status": 1
-	}, {
-		"commodity_list": [{
-			"name": "酸菜油滋啦包",
-			"price": 4.59,
-			"number": 1,
-			"image": "/static/img/menu/menu-3.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}],
-		"shop_num": 1,
-		"price": 4.59,
-		"orderstatus": 0,
-		"delivery_status": 2
-	}, {
-		"commodity_list": [{
-			"name": "透汁鲜肉+透汁牛肉+小米粥+小菜",
-			"price": 16.66,
-			"number": 1,
-			"image": "/static/img/menu/menu-4.jpg",
-			"is_single": false,
-			"materials_text": ""
-		}],
-		"shop_num": 1,
-		"price": 16.66,
-		"orderstatus": 2,
-		"delivery_status": 0
-	}]);
-	const couponList = ref([{
-		"image": "/static/img/order/egg-img.jpg",
-		"name": "精品富硒鸡蛋",
-		"price": 0,
-		"shop_num": 1,
-		"status": '0'
-	}, {
-		"image": "/static/img/order/egg-img.jpg",
-		"name": "精品富硒鸡蛋",
-		"price": 0,
-		"shop_num": 1,
-		"status": '1'
-	}]);
+	// 三 tab 都接 myOrders,按 status 数组区分
+	const pickupList = ref([])   // 堂食待付款/已付款
+	const takeoutList = ref([])  // 外卖配送中/已完成
+	const couponList = ref([])   // 劵码(暂留空,后续接核销流水)
+	const loading = ref(false)
+
+	const STATUS_PICKUP = ['PENDING', 'COOKING', 'READY', 'DONE', 'CANCELLED']
+	const STATUS_TAKEOUT = ['READY', 'DELIVERING', 'DONE', 'CANCELLED']
+
 	const current = ref(0);
 
 	const change = (index) => {
@@ -266,8 +154,9 @@
 
 	const orderDetail = (param) => {
 		const type = current.value == 0 ? 'takein' : 'takeout'
+		const orderId = param._id || param.id
 		uni.navigateTo({
-			url: `/subpackageOrder/order/order-detail?type=${type}`
+			url: `/subpackageOrder/order/order-detail?type=${type}&orderId=${orderId}`
 		})
 	}
 
@@ -276,6 +165,44 @@
 			url: `/subpackageOrder/order/coupon-detail?id=${param.id}`
 		})
 	}
+
+	const statusText = (o) => {
+		const map = {
+			PENDING: '待付款',
+			COOKING: '制作中',
+			READY: '待取餐/待配送',
+			DELIVERING: '配送中',
+			DONE: '已完成',
+			CANCELLED: '已取消',
+		}
+		return map[o.status] || o.status
+	}
+
+	const loadOrders = async () => {
+		const userInfo = store.state.userInfo
+		if (!userInfo || !userInfo._id) {
+			uni.showToast({ title: '请先登录', icon: 'none' })
+			return
+		}
+		loading.value = true
+		try {
+			// 堂食
+			const p = await unicloud.myOrdersC({ userId: userInfo._id, status: STATUS_PICKUP, orderType: 'takein' })
+			pickupList.value = (p.data || []).map(o => ({ ...o, status: o.status }))
+			// 外卖
+			const t = await unicloud.myOrdersC({ userId: userInfo._id, status: STATUS_TAKEOUT, orderType: 'takeout' })
+			takeoutList.value = (t.data || []).map(o => ({ ...o, status: o.status }))
+		} catch (e) {
+			console.error('[order] loadOrders error:', e)
+			uni.showToast({ title: e.message || '加载失败', icon: 'none' })
+		} finally {
+			loading.value = false
+		}
+	}
+
+	onMounted(() => {
+		loadOrders()
+	})
 </script>
 
 <style lang="scss" scoped>

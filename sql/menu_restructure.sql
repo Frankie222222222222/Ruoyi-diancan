@@ -52,68 +52,78 @@ SET @aftersaleId = LAST_INSERT_ID();
 
 -- 4. 迁移二级页面 (C = 菜单)
 -- 4.1 工作台 -> 运营统计
-UPDATE sys_menu SET parent_id=@dashboardId, order_num=1, path='statistics', component='takeout/statistics/index', icon='data-line', menu_type='C'
+-- 父菜单"工作台" path=dashboard → routeName=Dashboard
+UPDATE sys_menu SET parent_id=@dashboardId, order_num=1, path='statistics', component='takeout/statistics/index', icon='data-line', menu_type='C', route_name='Statistics'
   WHERE menu_id=2012;
 
 -- 4.2 订单中心 -> order/dispatch/kitchen
-UPDATE sys_menu SET parent_id=@orderId, order_num=1, path='order', component='takeout/order/index', icon='list', menu_type='C'
+-- 父菜单"订单中心" path=order → routeName=Order
+-- 子菜单 path=order → routeName=Order 会和父冲突，改为 OrderList
+UPDATE sys_menu SET parent_id=@orderId, order_num=1, path='order', component='takeout/order/index', icon='list', menu_type='C', route_name='OrderList'
   WHERE menu_id=2001;
-UPDATE sys_menu SET parent_id=@orderId, order_num=2, path='dispatch', component='takeout/dispatch/index', icon='van', menu_type='C'
+UPDATE sys_menu SET parent_id=@orderId, order_num=2, path='dispatch', component='takeout/dispatch/index', icon='van', menu_type='C', route_name='Dispatch'
   WHERE menu_id=2006;
-UPDATE sys_menu SET parent_id=@orderId, order_num=3, path='kitchen', component='takeout/kitchen/index', icon='dish', menu_type='C'
+UPDATE sys_menu SET parent_id=@orderId, order_num=3, path='kitchen', component='takeout/kitchen/index', icon='dish', menu_type='C', route_name='Kitchen'
   WHERE menu_id=10035;
 
 -- 4.3 商品管理 -> dish/dishCategory
-UPDATE sys_menu SET parent_id=@productId, order_num=1, path='dish', component='takeout/dish/index', icon='food', menu_type='C'
+-- 父菜单"商品管理" path=product → routeName=Product
+-- 子菜单不能跟父同名；dish/dishCategory 本身不冲突
+UPDATE sys_menu SET parent_id=@productId, order_num=1, path='dish', component='takeout/dish/index', icon='food', menu_type='C', route_name='Dish'
   WHERE menu_id=2003;
-UPDATE sys_menu SET parent_id=@productId, order_num=2, path='dishCategory', component='takeout/dishCategory/index', icon='collection', menu_type='C'
+UPDATE sys_menu SET parent_id=@productId, order_num=2, path='dishCategory', component='takeout/dishCategory/index', icon='collection', menu_type='C', route_name='DishCategory'
   WHERE menu_id=2004;
 
 -- 4.4 门店运营 -> merchant/dineTable
-UPDATE sys_menu SET parent_id=@shopId, order_num=1, path='merchant', component='takeout/merchant/index', icon='store', menu_type='C'
+-- 父菜单"门店运营" path=shop → routeName=Shop
+UPDATE sys_menu SET parent_id=@shopId, order_num=1, path='merchant', component='takeout/merchant/index', icon='store', menu_type='C', route_name='Merchant'
   WHERE menu_id=2002;
-UPDATE sys_menu SET parent_id=@shopId, order_num=2, path='dineTable', component='takeout/dineTable/index', icon='table', menu_type='C'
+UPDATE sys_menu SET parent_id=@shopId, order_num=2, path='dineTable', component='takeout/dineTable/index', icon='table', menu_type='C', route_name='DineTable'
   WHERE menu_id=10041;
 
 -- 4.5 骑手管理 -> rider
-UPDATE sys_menu SET parent_id=@riderId, order_num=1, path='rider', component='takeout/rider/index', icon='avatar', menu_type='C'
+-- 父菜单"骑手管理" path=rider → routeName=Rider
+-- 子菜单 path=rider → 会和父冲突，改为 RiderList
+UPDATE sys_menu SET parent_id=@riderId, order_num=1, path='rider', component='takeout/rider/index', icon='avatar', menu_type='C', route_name='RiderList'
   WHERE menu_id=2005;
 
 -- 4.6 用户与营销 -> user/address/coupon
-UPDATE sys_menu SET parent_id=@marketingId, order_num=1, path='user', component='takeout/user/index', icon='peoples', menu_type='C'
+-- 父菜单"用户与营销" path=marketing → routeName=Marketing
+UPDATE sys_menu SET parent_id=@marketingId, order_num=1, path='user', component='takeout/user/index', icon='peoples', menu_type='C', route_name='User'
   WHERE menu_id=2007;
-UPDATE sys_menu SET parent_id=@marketingId, order_num=2, path='address', component='takeout/address/index', icon='location', menu_type='C'
+UPDATE sys_menu SET parent_id=@marketingId, order_num=2, path='address', component='takeout/address/index', icon='location', menu_type='C', route_name='Address'
   WHERE menu_id=10047;
-UPDATE sys_menu SET parent_id=@marketingId, order_num=3, path='coupon', component='takeout/coupon/index', icon='discount', menu_type='C'
+UPDATE sys_menu SET parent_id=@marketingId, order_num=3, path='coupon', component='takeout/coupon/index', icon='discount', menu_type='C', route_name='Coupon'
   WHERE menu_id=2008;
 
 -- 4.7 售后与反馈 -> rating/complaint
-UPDATE sys_menu SET parent_id=@aftersaleId, order_num=1, path='rating', component='takeout/rating/index', icon='star', menu_type='C'
+-- 父菜单"售后与反馈" path=aftersale → routeName=Aftersale
+UPDATE sys_menu SET parent_id=@aftersaleId, order_num=1, path='rating', component='takeout/rating/index', icon='star', menu_type='C', route_name='Rating'
   WHERE menu_id=2009;
-UPDATE sys_menu SET parent_id=@aftersaleId, order_num=2, path='complaint', component='takeout/complaint/index', icon='warning', menu_type='C'
+UPDATE sys_menu SET parent_id=@aftersaleId, order_num=2, path='complaint', component='takeout/complaint/index', icon='warning', menu_type='C', route_name='Complaint'
   WHERE menu_id=2010;
 
 -- 5. 新增"打印扫码设置"占位页 (门店运营下)
-INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark)
-VALUES ('打印扫码设置', @shopId, 3, 'print', 'takeout/print/index', 1, 0, 'C', '0', '0', 'takeout:print:list', 'printer', 'admin', NOW(), '占位页');
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark, route_name)
+VALUES ('打印扫码设置', @shopId, 3, 'print', 'takeout/print/index', 1, 0, 'C', '0', '0', 'takeout:print:list', 'printer', 'admin', NOW(), '占位页', 'Print');
 SET @printId = LAST_INSERT_ID();
 
 -- 6. 补齐已有 vue 页面但没菜单的条目
 -- 6.1 骑手位置
-INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark)
-VALUES ('骑手位置', @riderId, 2, 'riderLocation', 'takeout/riderLocation/index', 1, 0, 'C', '0', '0', 'takeout:rider:list', 'location', 'admin', NOW(), '');
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark, route_name)
+VALUES ('骑手位置', @riderId, 2, 'riderLocation', 'takeout/riderLocation/index', 1, 0, 'C', '0', '0', 'takeout:rider:list', 'location', 'admin', NOW(), '', 'RiderLocation');
 
 -- 6.2 Banner管理
-INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark)
-VALUES ('Banner管理', @marketingId, 4, 'banner', 'takeout/ops/banner', 1, 0, 'C', '0', '0', 'takeout:ops:list', 'picture', 'admin', NOW(), '');
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark, route_name)
+VALUES ('Banner管理', @marketingId, 4, 'banner', 'takeout/ops/banner', 1, 0, 'C', '0', '0', 'takeout:ops:list', 'picture', 'admin', NOW(), '', 'Banner');
 
 -- 6.3 公告管理
-INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark)
-VALUES ('公告管理', @marketingId, 5, 'announcement', 'takeout/ops/announcement', 1, 0, 'C', '0', '0', 'takeout:ops:list', 'message', 'admin', NOW(), '');
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark, route_name)
+VALUES ('公告管理', @marketingId, 5, 'announcement', 'takeout/ops/announcement', 1, 0, 'C', '0', '0', 'takeout:ops:list', 'message', 'admin', NOW(), '', 'Announcement');
 
 -- 6.4 帮助中心
-INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark)
-VALUES ('帮助中心', @marketingId, 6, 'help', 'takeout/ops/help', 1, 0, 'C', '0', '0', 'takeout:ops:list', 'documentation', 'admin', NOW(), '');
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark, route_name)
+VALUES ('帮助中心', @marketingId, 6, 'help', 'takeout/ops/help', 1, 0, 'C', '0', '0', 'takeout:ops:list', 'documentation', 'admin', NOW(), '', 'Help');
 
 -- 7. 把所有新菜单授权给 admin (role_id=1)
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
